@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import Button from './common/Button';
+import Tooltip from './common/Tooltip';
+import { InfoIcon } from './icons/InfoIcon';
 
 // Define types for form data and errors
 interface FormData {
   name: string;
   empresa: string;
+  document: string;
   cidade: string;
   uf: string;
   email: string;
@@ -15,6 +18,7 @@ interface FormData {
 interface FormErrors {
   name?: string;
   empresa?: string;
+  document?: string;
   cidade?: string;
   uf?: string;
   email?: string;
@@ -22,9 +26,11 @@ interface FormErrors {
 }
 
 const Hero: React.FC = () => {
+  const [docType, setDocType] = useState<'CNPJ' | 'CPF'>('CNPJ');
   const [formData, setFormData] = useState<FormData>({
     name: '',
     empresa: '',
+    document: '',
     cidade: '',
     uf: '',
     email: '',
@@ -58,6 +64,17 @@ const Hero: React.FC = () => {
         newErrors.whatsapp = 'Número inválido.';
     }
 
+    if (!formData.document.trim()) {
+        newErrors.document = `O ${docType} é obrigatório.`;
+    } else {
+        const numbersOnly = formData.document.replace(/\D/g, '');
+        if (docType === 'CNPJ' && numbersOnly.length !== 14) {
+            newErrors.document = 'CNPJ inválido. Deve conter 14 dígitos.';
+        } else if (docType === 'CPF' && numbersOnly.length !== 11) {
+            newErrors.document = 'CPF inválido. Deve conter 11 dígitos.';
+        }
+    }
+
     return newErrors;
   };
 
@@ -71,10 +88,26 @@ const Hero: React.FC = () => {
         .replace(/\D/g, '')
         .replace(/^(\d{2})(\d)/g, '($1) $2')
         .replace(/(\d{5})(\d)/, '$1-$2')
-        .replace(/(\d{4})(\d{1,4})/, '$1-$2') // handles 8 and 9 digit numbers
+        .replace(/(\d{4})(\d{1,4})/, '$1-$2')
         .slice(0, 15);
     } else if (name === 'uf') {
         formattedValue = value.toUpperCase().slice(0, 2);
+    } else if (name === 'document') {
+        const numbersOnly = value.replace(/\D/g, '');
+        if (docType === 'CNPJ') {
+          formattedValue = numbersOnly
+            .slice(0, 14)
+            .replace(/(\d{2})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d)/, '$1/$2')
+            .replace(/(\d{4})(\d)/, '$1-$2');
+        } else { // CPF
+          formattedValue = numbersOnly
+            .slice(0, 11)
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d)/, '$1.$2')
+            .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        }
     }
     
     setFormData({ ...formData, [name]: formattedValue });
@@ -84,6 +117,14 @@ const Hero: React.FC = () => {
         setErrors({ ...errors, [name]: undefined });
     }
   };
+
+  const handleDocTypeChange = (type: 'CNPJ' | 'CPF') => {
+      if (type !== docType) {
+          setDocType(type);
+          setFormData(prev => ({ ...prev, document: '' }));
+          setErrors(prev => ({ ...prev, document: undefined }));
+      }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +140,7 @@ const Hero: React.FC = () => {
       setFormData({
         name: '',
         empresa: '',
+        document: '',
         cidade: '',
         uf: '',
         email: '',
@@ -146,7 +188,12 @@ const Hero: React.FC = () => {
                         {errors.name && <p className="text-red-400 text-xs mt-1 text-left">{errors.name}</p>}
                     </div>
                     <div>
-                        <label htmlFor="empresa" className="block text-sm font-medium text-gray-300 mb-1 text-left">Nome da Empresa</label>
+                        <div className="flex items-center gap-1 mb-1">
+                            <label htmlFor="empresa" className="block text-sm font-medium text-gray-300 text-left">Nome da Empresa</label>
+                            <Tooltip text="Pode ser o nome fantasia ou a razão social da sua empresa.">
+                                <InfoIcon className="w-4 h-4 text-gray-400 cursor-help" />
+                            </Tooltip>
+                        </div>
                         <input 
                           type="text" 
                           id="empresa" 
@@ -158,6 +205,39 @@ const Hero: React.FC = () => {
                           className={`w-full bg-slate-700/50 border rounded-md px-3 py-2 text-white focus:ring-yellow-500 focus:border-yellow-500 transition ${errors.empresa ? 'border-red-500' : 'border-slate-600'}`} 
                         />
                         {errors.empresa && <p className="text-red-400 text-xs mt-1 text-left">{errors.empresa}</p>}
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <div className="flex items-center gap-2 mb-2">
+                            <label className="block text-sm font-medium text-gray-300">Tipo de Documento</label>
+                            <div className="flex bg-slate-700/50 rounded-lg p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => handleDocTypeChange('CNPJ')}
+                                    className={`px-3 py-1 text-sm rounded-md transition-colors ${docType === 'CNPJ' ? 'bg-yellow-500 text-slate-900 font-semibold' : 'text-gray-300 hover:bg-slate-600'}`}
+                                >
+                                    CNPJ
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDocTypeChange('CPF')}
+                                    className={`px-3 py-1 text-sm rounded-md transition-colors ${docType === 'CPF' ? 'bg-yellow-500 text-slate-900 font-semibold' : 'text-gray-300 hover:bg-slate-600'}`}
+                                >
+                                    CPF
+                                </button>
+                            </div>
+                        </div>
+                         <input
+                            type="tel"
+                            id="document"
+                            name="document"
+                            placeholder={docType === 'CNPJ' ? '00.000.000/0000-00' : '000.000.000-00'}
+                            required
+                            value={formData.document}
+                            onChange={handleChange}
+                            className={`w-full bg-slate-700/50 border rounded-md px-3 py-2 text-white focus:ring-yellow-500 focus:border-yellow-500 transition ${errors.document ? 'border-red-500' : 'border-slate-600'}`}
+                        />
+                        {errors.document && <p className="text-red-400 text-xs mt-1 text-left">{errors.document}</p>}
                     </div>
                     
                     <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-4 gap-x-4 gap-y-6">
@@ -207,7 +287,12 @@ const Hero: React.FC = () => {
                         {errors.email && <p className="text-red-400 text-xs mt-1 text-left">{errors.email}</p>}
                     </div>
                     <div>
-                        <label htmlFor="whatsapp" className="block text-sm font-medium text-gray-300 mb-1 text-left">WhatsApp</label>
+                        <div className="flex items-center gap-1 mb-1">
+                            <label htmlFor="whatsapp" className="block text-sm font-medium text-gray-300 text-left">WhatsApp</label>
+                             <Tooltip text="Usaremos este número para enviar notificações sobre novas oportunidades. O número será formatado automaticamente.">
+                                <InfoIcon className="w-4 h-4 text-gray-400 cursor-help" />
+                            </Tooltip>
+                        </div>
                         <input 
                           type="tel" 
                           id="whatsapp" 
