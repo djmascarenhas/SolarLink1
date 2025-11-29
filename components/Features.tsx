@@ -7,7 +7,7 @@ import { CoinsIcon } from './icons/CoinsIcon';
 
 const Features: React.FC = () => {
   return (
-    <section id="comprar" className="py-20 bg-slate-900">
+    <section className="py-20 bg-slate-900">
       <div className="container mx-auto px-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           <Card className="flex flex-col items-start text-left">
@@ -16,7 +16,9 @@ const Features: React.FC = () => {
             <p className="text-gray-400 mb-6">
               Você compra pacotes de créditos conforme sua necessidade; pacotes maiores saem com desconto. Ver as oportunidades é 100% gratuito — só gasta créditos quando quiser acessar o contato e responder.
             </p>
-            <Button variant="outline">Comprar créditos</Button>
+            <a href="#comprar" className="inline-block">
+                <Button variant="outline">Comprar créditos</Button>
+            </a>
           </Card>
           <Card className="flex flex-col items-start text-left">
             <ShieldCheckIcon className="w-12 h-12 text-green-400 mb-4" />
