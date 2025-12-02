@@ -31,27 +31,40 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="bg-slate-900 min-h-screen text-gray-200 font-sans selection:bg-yellow-500/30">
-      <Header onNavigate={handleNavigate} currentView={currentView} />
-      <main>
-        {currentView === 'home' ? (
-          <>
-            <Hero />
-            <WhyChooseUs />
-            <HowItWorks />
-            <Features />
-            <Pricing />
-            <Faq />
-            <CtaSection onNavigate={handleNavigate} />
-          </>
-        ) : (
-          <Opportunities 
-            onBack={() => handleNavigate('home')} 
-            onNavigate={handleNavigate} 
-          />
-        )}
-      </main>
-      <Footer />
+    <div className="relative min-h-screen text-gray-200 font-sans selection:bg-yellow-500/30">
+      {/* Global Background Image */}
+      <div className="fixed inset-0 z-0">
+         <img 
+            src="https://images.unsplash.com/photo-1509391366360-2e959784a276?q=80&w=2000&auto=format&fit=crop" 
+            alt="Solar Plant Background" 
+            className="w-full h-full object-cover"
+         />
+         {/* Global Dark Overlay for Readability */}
+         <div className="absolute inset-0 bg-slate-900/90 mix-blend-multiply"></div>
+      </div>
+
+      <div className="relative z-10 flex flex-col min-h-screen">
+          <Header onNavigate={handleNavigate} currentView={currentView} />
+          <main className="flex-grow">
+            {currentView === 'home' ? (
+              <>
+                <Hero />
+                <WhyChooseUs />
+                <HowItWorks />
+                <Features />
+                <Pricing />
+                <Faq />
+                <CtaSection onNavigate={handleNavigate} />
+              </>
+            ) : (
+              <Opportunities 
+                onBack={() => handleNavigate('home')} 
+                onNavigate={handleNavigate} 
+              />
+            )}
+          </main>
+          <Footer />
+      </div>
     </div>
   );
 };

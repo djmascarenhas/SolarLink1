@@ -339,17 +339,8 @@ const Hero: React.FC = () => {
     <section 
       className="relative min-h-screen flex items-center pt-24 pb-20 overflow-hidden"
     >
-      {/* Parallax Background with modern overlay */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-fixed z-0"
-        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1545939268-bd45ec41b80e?q=80&w=2000&auto=format&fit=crop')" }}
-      ></div>
+      {/* Background is now handled by App.tsx globally */}
       
-      {/* Gradient Overlays for readability and style */}
-      <div className="absolute inset-0 bg-slate-900/40 z-0"></div>
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-transparent to-slate-900 z-0 pointer-events-none"></div>
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-transparent z-0 pointer-events-none"></div>
-
       <div className="container mx-auto px-6 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             
@@ -359,8 +350,8 @@ const Hero: React.FC = () => {
                     Líder em Conexões Solares
                 </div>
                 
-                <h1 className="text-4xl lg:text-6xl font-extrabold leading-tight tracking-tight">
-                    Conecte sua empresa a <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 drop-shadow-sm">clientes reais</span>.
+                <h1 className="text-4xl lg:text-6xl font-extrabold leading-tight tracking-tight drop-shadow-lg">
+                    Conecte sua empresa a <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">clientes reais</span>.
                 </h1>
                 
                 <p className="text-lg text-gray-200 leading-relaxed max-w-lg shadow-black drop-shadow-md">

@@ -12,14 +12,17 @@ import { ArrowLeftIcon } from './icons/ArrowLeftIcon';
 import { UserIcon } from './icons/UserIcon';
 import { SunIcon } from './icons/SunIcon';
 import { CheckIcon } from './icons/CheckIcon';
+import { TargetIcon } from './icons/TargetIcon';
 
-// Mock Data Expanded
+// Mock Data Expanded with Lat/Lng
 const opportunitiesData = [
   {
     id: 1,
     type: 'Residencial',
     city: 'Campinas',
     uf: 'SP',
+    lat: -22.9099,
+    lng: -47.0626,
     billValue: 'R$ 450,00',
     avgConsumption: '500 kWh',
     roofType: 'Telha Cerâmica',
@@ -34,6 +37,8 @@ const opportunitiesData = [
     type: 'Comercial',
     city: 'Belo Horizonte',
     uf: 'MG',
+    lat: -19.9167,
+    lng: -43.9345,
     billValue: 'R$ 3.200,00',
     avgConsumption: '3.500 kWh',
     roofType: 'Metálico',
@@ -48,6 +53,8 @@ const opportunitiesData = [
     type: 'Residencial',
     city: 'Sorocaba',
     uf: 'SP',
+    lat: -23.5015,
+    lng: -47.4521,
     billValue: 'R$ 680,00',
     avgConsumption: '750 kWh',
     roofType: 'Fibrocimento',
@@ -62,6 +69,8 @@ const opportunitiesData = [
     type: 'Usina',
     city: 'Cuiabá',
     uf: 'MT',
+    lat: -15.6014,
+    lng: -56.0979,
     billValue: 'R$ 15.000,00',
     avgConsumption: '18.000 kWh',
     roofType: 'Solo',
@@ -76,6 +85,8 @@ const opportunitiesData = [
     type: 'Residencial',
     city: 'Curitiba',
     uf: 'PR',
+    lat: -25.4284,
+    lng: -49.2733,
     billValue: 'R$ 550,00',
     avgConsumption: '600 kWh',
     roofType: 'Shingle',
@@ -90,6 +101,8 @@ const opportunitiesData = [
     type: 'Comercial',
     city: 'Ribeirão Preto',
     uf: 'SP',
+    lat: -21.1704,
+    lng: -47.8103,
     billValue: 'R$ 2.100,00',
     avgConsumption: '2.300 kWh',
     roofType: 'Laje Plana',
@@ -109,21 +122,44 @@ interface OpportunitiesProps {
 const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => {
   const [filterType, setFilterType] = useState('Todos');
   const [filterState, setFilterState] = useState('Todos');
+  const [maxDistance, setMaxDistance] = useState<number>(2000); // Slider value in km
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [selectedOpp, setSelectedOpp] = useState<typeof opportunitiesData[0] | null>(null);
   const [unlocked, setUnlocked] = useState(false);
   const [hoveredMapItem, setHoveredMapItem] = useState<number | null>(null);
   const [activeMarkerId, setActiveMarkerId] = useState<number | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+  // Simulated User Location (São Paulo Capital)
+  const userLocation = { lat: -23.5505, lng: -46.6333, city: 'São Paulo' };
 
   // Reset unlocked state when changing opportunities
   React.useEffect(() => {
       setUnlocked(false);
+      setShowConfirmModal(false);
   }, [selectedOpp]);
+
+  // Haversine formula to calculate distance in km
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // Distance in km
+  };
 
   const filteredData = opportunitiesData.filter(item => {
     const typeMatch = filterType === 'Todos' || item.type === filterType;
     const stateMatch = filterState === 'Todos' || item.uf === filterState;
-    return typeMatch && stateMatch;
+    
+    const distance = calculateDistance(userLocation.lat, userLocation.lng, item.lat, item.lng);
+    const distanceMatch = distance <= maxDistance;
+
+    return typeMatch && stateMatch && distanceMatch;
   });
 
   const getIcon = (type: string, className = "w-5 h-5") => {
@@ -136,7 +172,6 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
   };
 
   // Helper to approximate coordinates on a Brazil map background
-  // Top/Left percentages
   const getStateCoordinates = (uf: string) => {
     const coords: Record<string, { top: string; left: string }> = {
         'SP': { top: '72%', left: '60%' },
@@ -151,12 +186,13 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
     return coords[uf] || { top: '50%', left: '50%' }; // Default center
   };
 
-  const handleUnlock = () => {
-      // Mock unlock logic
-      const confirmUnlock = window.confirm(`Deseja utilizar ${selectedOpp?.credits} créditos para desbloquear este contato?`);
-      if (confirmUnlock) {
-          setUnlocked(true);
-      }
+  const handleUnlockClick = () => {
+      setShowConfirmModal(true);
+  };
+
+  const confirmUnlockAction = () => {
+      setUnlocked(true);
+      setShowConfirmModal(false);
   };
 
   const handleBuyCredits = () => {
@@ -173,24 +209,50 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
   // --- DETAIL VIEW ---
   if (selectedOpp) {
       return (
-        <section className="min-h-screen pt-24 pb-20 bg-slate-900 text-white animate-fadeIn">
+        <section className="min-h-screen pt-24 pb-20 bg-transparent text-white animate-fadeIn relative">
+            {/* Modal de Confirmação */}
+            {showConfirmModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setShowConfirmModal(false)}></div>
+                    <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full relative z-10 shadow-2xl animate-scaleIn">
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 bg-yellow-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <CoinsIcon className="w-8 h-8 text-yellow-400" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">Confirmar Desbloqueio</h3>
+                            <p className="text-gray-300">
+                                Você está prestes a utilizar <span className="text-yellow-400 font-bold">{selectedOpp.credits} créditos</span> para visualizar os dados deste contato.
+                            </p>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                            <Button variant="primary" onClick={confirmUnlockAction} className="w-full justify-center">
+                                Confirmar e Desbloquear
+                            </Button>
+                            <Button variant="outline" onClick={() => setShowConfirmModal(false)} className="w-full justify-center border-slate-600 text-gray-400 hover:text-white hover:border-white">
+                                Cancelar
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="container mx-auto px-6">
                 {/* Nav Back */}
                 <button 
                     onClick={() => setSelectedOpp(null)}
-                    className="group flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8"
+                    className="group flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8 bg-slate-900/50 p-2 rounded-lg inline-flex"
                 >
-                    <div className="p-2 rounded-full bg-slate-800 group-hover:bg-slate-700 border border-slate-700 transition-colors">
-                        <ArrowLeftIcon className="w-5 h-5" />
+                    <div className="p-1.5 rounded-full bg-slate-800 group-hover:bg-slate-700 border border-slate-700 transition-colors">
+                        <ArrowLeftIcon className="w-4 h-4" />
                     </div>
-                    <span className="font-medium">Voltar para a lista</span>
+                    <span className="font-medium text-sm">Voltar para a lista</span>
                 </button>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Header Card */}
-                        <div className="bg-slate-800/60 backdrop-blur-md border border-slate-700 p-8 rounded-2xl relative overflow-hidden">
+                        <div className="bg-slate-900/70 backdrop-blur-md border border-slate-700 p-8 rounded-2xl relative overflow-hidden">
                              <div className="absolute top-0 right-0 p-4 opacity-10">
                                 {getIcon(selectedOpp.type, "w-64 h-64")}
                              </div>
@@ -220,7 +282,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
 
                         {/* Details Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Card className="bg-slate-800/40">
+                            <Card className="bg-slate-900/70 backdrop-blur-sm">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="p-2 bg-slate-700/50 rounded-lg">
                                         <BoltIcon className="w-6 h-6 text-yellow-400" />
@@ -243,7 +305,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                                 </ul>
                             </Card>
 
-                            <Card className="bg-slate-800/40">
+                            <Card className="bg-slate-900/70 backdrop-blur-sm">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="p-2 bg-slate-700/50 rounded-lg">
                                         <SunIcon className="w-6 h-6 text-orange-400" />
@@ -268,7 +330,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                         </div>
 
                         {/* Description */}
-                        <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-6">
+                        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700 rounded-xl p-6">
                             <h3 className="font-semibold text-lg mb-3 text-white">Sobre o Projeto</h3>
                             <p className="text-gray-300 leading-relaxed">
                                 {selectedOpp.description}
@@ -280,7 +342,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                     <div className="lg:col-span-1">
                         <div className="sticky top-24 space-y-6">
                             {/* Contact Card */}
-                            <div className="bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6 shadow-xl">
+                            <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700 rounded-2xl p-6 shadow-xl">
                                 <div className="flex items-center gap-3 mb-6 pb-6 border-b border-slate-700">
                                     <div className="p-3 bg-slate-700 rounded-full">
                                         <UserIcon className="w-6 h-6 text-gray-300" />
@@ -323,7 +385,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                                     <Button 
                                         variant="primary" 
                                         className="w-full py-4 text-base shadow-lg shadow-yellow-500/20"
-                                        onClick={handleUnlock}
+                                        onClick={handleUnlockClick}
                                     >
                                         Desbloquear Contato
                                     </Button>
@@ -344,7 +406,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                             </div>
                             
                             {/* Summary Box */}
-                            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
+                            <div className="bg-slate-900/60 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-gray-400 text-sm">Custo desta oportunidade:</span>
                                     <span className="text-yellow-400 font-bold">{selectedOpp.credits} Créditos</span>
@@ -367,7 +429,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
 
   // --- LIST/MAP VIEW (Default) ---
   return (
-    <section className="min-h-screen pt-24 pb-20 bg-slate-900 text-white animate-fadeIn">
+    <section className="min-h-screen pt-24 pb-20 bg-transparent text-white animate-fadeIn">
       <div className="container mx-auto px-6">
         
         {/* Header da Página */}
@@ -375,71 +437,95 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
             <div>
                 <button 
                     onClick={onBack}
-                    className="text-sm text-gray-400 hover:text-white flex items-center gap-1 mb-2 transition-colors"
+                    className="text-sm text-gray-400 hover:text-white flex items-center gap-1 mb-2 transition-colors bg-slate-900/50 px-3 py-1 rounded-full"
                 >
                     <ArrowLeftIcon className="w-4 h-4" />
                     Voltar para Home
                 </button>
-                <h1 className="text-3xl md:text-4xl font-bold">Oportunidades Disponíveis</h1>
-                <p className="text-gray-400 mt-2">Encontre o próximo projeto para sua empresa.</p>
+                <h1 className="text-3xl md:text-4xl font-bold drop-shadow-md">Oportunidades Disponíveis</h1>
+                <p className="text-gray-300 mt-2 font-medium shadow-black drop-shadow-sm">Encontre o próximo projeto para sua empresa.</p>
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <div className="bg-slate-800 rounded-lg p-1 border border-slate-700 flex justify-between items-center px-3">
-                    <span className="text-xs text-gray-500 uppercase font-bold mr-2">Créditos:</span>
+                <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-1 border border-slate-700 flex justify-between items-center px-3">
+                    <span className="text-xs text-gray-400 uppercase font-bold mr-2">Créditos:</span>
                     <span className="text-yellow-400 font-bold">0 disponíveis</span>
                 </div>
-                <Button variant="outline" className="px-4 py-2 text-sm" onClick={handleBuyCredits}>
+                <Button variant="outline" className="px-4 py-2 text-sm bg-slate-900/50 hover:bg-slate-800" onClick={handleBuyCredits}>
                     Comprar Créditos
                 </Button>
             </div>
         </div>
 
         {/* Filtros e Toggle */}
-        <Card className="mb-10 !p-4 flex flex-col lg:flex-row gap-4 items-center justify-between bg-slate-800/80">
-            <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-                <div className="flex flex-wrap gap-2">
-                    {['Todos', 'Residencial', 'Comercial', 'Usina'].map(type => (
-                        <button
-                            key={type}
-                            onClick={() => setFilterType(type)}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                                filterType === type 
-                                ? 'bg-yellow-500 text-slate-900 shadow-lg shadow-yellow-500/20' 
-                                : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
-                            }`}
-                        >
-                            {type}
-                        </button>
-                    ))}
+        <Card className="mb-10 !p-4 bg-slate-900/80 backdrop-blur-md border-slate-700 space-y-4">
+            <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+                <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+                    <div className="flex flex-wrap gap-2">
+                        {['Todos', 'Residencial', 'Comercial', 'Usina'].map(type => (
+                            <button
+                                key={type}
+                                onClick={() => setFilterType(type)}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    filterType === type 
+                                    ? 'bg-yellow-500 text-slate-900 shadow-lg shadow-yellow-500/20' 
+                                    : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                                }`}
+                            >
+                                {type}
+                            </button>
+                        ))}
+                    </div>
+                    
+                    <select 
+                        value={filterState}
+                        onChange={(e) => setFilterState(e.target.value)}
+                        className="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg focus:ring-yellow-500 focus:border-yellow-500 block w-full sm:w-40 p-2.5 outline-none"
+                    >
+                        <option value="Todos">Todos os Estados</option>
+                        <option value="SP">São Paulo (SP)</option>
+                        <option value="MG">Minas Gerais (MG)</option>
+                        <option value="PR">Paraná (PR)</option>
+                        <option value="MT">Mato Grosso (MT)</option>
+                    </select>
                 </div>
-                
-                <select 
-                    value={filterState}
-                    onChange={(e) => setFilterState(e.target.value)}
-                    className="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-yellow-500 focus:border-yellow-500 block w-full sm:w-40 p-2.5 outline-none"
-                >
-                    <option value="Todos">Todos os Estados</option>
-                    <option value="SP">São Paulo (SP)</option>
-                    <option value="MG">Minas Gerais (MG)</option>
-                    <option value="PR">Paraná (PR)</option>
-                    <option value="MT">Mato Grosso (MT)</option>
-                </select>
-            </div>
 
-            <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
-                <button
-                    onClick={() => setViewMode('list')}
-                    className={`px-4 py-1.5 rounded text-sm font-medium transition-all ${viewMode === 'list' ? 'bg-slate-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}
-                >
-                    Lista
-                </button>
-                <button
-                    onClick={() => setViewMode('map')}
-                    className={`px-4 py-1.5 rounded text-sm font-medium transition-all ${viewMode === 'map' ? 'bg-slate-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}
-                >
-                    Mapa
-                </button>
+                <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-600">
+                    <button
+                        onClick={() => setViewMode('list')}
+                        className={`px-4 py-1.5 rounded text-sm font-medium transition-all ${viewMode === 'list' ? 'bg-slate-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        Lista
+                    </button>
+                    <button
+                        onClick={() => setViewMode('map')}
+                        className={`px-4 py-1.5 rounded text-sm font-medium transition-all ${viewMode === 'map' ? 'bg-slate-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        Mapa
+                    </button>
+                </div>
+            </div>
+            
+            {/* Radius Slider - Visible for both views but emphasized for map */}
+            <div className="border-t border-slate-700 pt-4 flex flex-col md:flex-row gap-4 items-center">
+                <div className="text-sm text-gray-400 flex items-center gap-2 min-w-fit">
+                    <TargetIcon className="w-4 h-4 text-indigo-400" />
+                    <span>Raio de Distância de <strong>{userLocation.city}</strong>:</span>
+                </div>
+                <div className="flex items-center gap-3 w-full max-w-md">
+                     <span className="text-xs font-mono text-gray-500">0km</span>
+                     <input 
+                        type="range" 
+                        min="0" 
+                        max="2000" 
+                        step="50"
+                        value={maxDistance} 
+                        onChange={(e) => setMaxDistance(parseInt(e.target.value))}
+                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-500"
+                     />
+                     <span className="text-xs font-mono text-white font-bold min-w-[60px]">{maxDistance === 2000 ? '2000+' : maxDistance}km</span>
+                </div>
+                <span className="text-xs text-gray-500 ml-auto hidden md:block">Filtrando {filteredData.length} resultados</span>
             </div>
         </Card>
 
@@ -450,34 +536,34 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                     <div 
                         key={opp.id} 
                         onClick={() => { setSelectedOpp(opp); window.scrollTo(0, 0); }}
-                        className="group bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden hover:border-yellow-500/50 hover:shadow-xl hover:shadow-yellow-500/10 transition-all duration-300 flex flex-col cursor-pointer"
+                        className="group bg-slate-900/70 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden hover:border-yellow-500/50 hover:scale-[1.02] hover:shadow-2xl hover:shadow-yellow-500/10 transition-all duration-300 flex flex-col cursor-pointer"
                     >
                         <div className="p-6 flex-grow">
                             <div className="flex justify-between items-start mb-4">
-                                <div className="flex items-center gap-2 bg-slate-900/80 py-1.5 px-3 rounded-full border border-slate-700">
+                                <div className="flex items-center gap-2 bg-slate-800 py-1.5 px-3 rounded-full border border-slate-700">
                                     {getIcon(opp.type)}
                                     <span className="text-xs font-semibold uppercase tracking-wide text-gray-300">{opp.type}</span>
                                 </div>
-                                <span className="text-xs text-gray-500 font-medium">{opp.date}</span>
+                                <span className="text-xs text-gray-400 font-medium">{opp.date}</span>
                             </div>
                             
                             <div className="space-y-3 mb-6">
-                                <div className="flex items-center gap-3 text-gray-200">
+                                <div className="flex items-center gap-3 text-gray-300">
                                     <MapPinIcon className="w-5 h-5 text-gray-500" />
                                     <span className="font-medium">{opp.city} - {opp.uf}</span>
                                 </div>
-                                <div className="flex items-center gap-3 text-gray-200">
+                                <div className="flex items-center gap-3 text-gray-300">
                                     <BoltIcon className="w-5 h-5 text-gray-500" />
                                     <span>Conta: <span className="font-semibold text-white">{opp.billValue}</span></span>
                                 </div>
-                                <div className="flex items-center gap-3 text-gray-200">
+                                <div className="flex items-center gap-3 text-gray-300">
                                     <HomeIcon className="w-5 h-5 text-gray-500" />
                                     <span>Telhado: {opp.roofType}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="bg-slate-900/50 p-4 border-t border-slate-700 flex justify-between items-center group-hover:bg-slate-900/80 transition-colors">
+                        <div className="bg-slate-800/50 p-4 border-t border-slate-700 flex justify-between items-center group-hover:bg-slate-800 transition-colors">
                             <div className="flex items-center gap-1.5 text-yellow-400 font-bold">
                                 <CoinsIcon className="w-4 h-4" />
                                 <span>{opp.credits} Crédito{opp.credits > 1 ? 's' : ''}</span>
@@ -492,7 +578,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
         ) : (
             /* Visualização Mapa Interativo */
             <div 
-                className="w-full h-[600px] bg-slate-800/50 rounded-2xl border border-slate-700 relative overflow-hidden animate-fadeIn"
+                className="w-full h-[600px] bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-700 relative overflow-hidden animate-fadeIn"
                 onClick={() => setActiveMarkerId(null)}
             >
                 <div 
@@ -559,10 +645,19 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                                         <span className="text-yellow-400 font-bold">{opp.credits} Créditos</span>
                                     </div>
                                     {isActive && (
-                                        <div className="mt-3 pt-2 border-t border-slate-700 text-center">
+                                        <div className="mt-3 pt-2 border-t border-slate-700 text-center flex flex-col gap-2">
                                             <span className="text-xs text-yellow-400 font-bold underline decoration-yellow-400/30">
                                                 Clique para ver detalhes
                                             </span>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if(onNavigate) onNavigate('home', '#como-funciona');
+                                                }}
+                                                className="w-full bg-slate-700 hover:bg-slate-600 text-white text-xs py-1.5 px-3 rounded transition-colors mt-1 font-medium"
+                                            >
+                                                Saiba Mais
+                                            </button>
                                         </div>
                                     )}
                                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-slate-800 border-r border-b border-slate-700 transform rotate-45"></div>
@@ -591,8 +686,10 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
         )}
         
         {filteredData.length === 0 && (
-            <div className="text-center py-20 opacity-60">
-                <p className="text-xl">Nenhuma oportunidade encontrada com os filtros selecionados.</p>
+            <div className="flex flex-col items-center justify-center py-20 text-gray-500 opacity-70 animate-fadeIn">
+                <TargetIcon className="w-16 h-16 mb-4 text-gray-600" />
+                <p className="text-xl font-medium">Nenhuma oportunidade encontrada com os filtros selecionados.</p>
+                <p className="text-sm mt-2">Tente aumentar o raio de distância ou selecionar outro estado.</p>
             </div>
         )}
 
