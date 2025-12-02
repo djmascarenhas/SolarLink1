@@ -138,15 +138,16 @@ const Hero: React.FC = () => {
         textToProcess = "Somos uma empresa integradora de energia solar comprometida em entregar as melhores soluções fotovoltaicas, garantindo economia e sustentabilidade para nossos clientes residenciais e comerciais.";
       }
       
-      const prompt = `Você é um especialista em marketing para empresas de energia solar. 
-      Reescreva a seguinte descrição de perfil de empresa para torná-la mais profissional, confiável e atraente para clientes que buscam instalação de energia solar.
-      Texto original (base): "${textToProcess}"
+      const prompt = `Atue como um especialista em marketing e copywriting para integradores de energia solar.
+      Reescreva e aprimore a seguinte descrição de empresa para torná-la altamente profissional e atraente.
       
-      Instruções:
-      - Mantenha o texto em Português do Brasil.
-      - Use um tom sério, porém acessível e persuasivo.
-      - Destaque benefícios como economia, qualidade técnica e confiança.
-      - Limite a resposta a cerca de 300 caracteres.`;
+      Texto Original: "${textToProcess}"
+      
+      Requisitos Obrigatórios:
+      1. Destaque enfaticamente: Economia financeira, Qualidade Técnica Superior e Confiança.
+      2. Tom de voz: Profissional, seguro e persuasivo.
+      3. Limite de tamanho: Mantenha o texto conciso, com no máximo 300 caracteres.
+      4. Idioma: Português do Brasil.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-flash-lite-latest',

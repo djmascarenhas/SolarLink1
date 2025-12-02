@@ -13,6 +13,7 @@ import { UserIcon } from './icons/UserIcon';
 import { SunIcon } from './icons/SunIcon';
 import { CheckIcon } from './icons/CheckIcon';
 import { TargetIcon } from './icons/TargetIcon';
+import { WhatsAppIcon } from './icons/WhatsAppIcon';
 
 // Mock Data Expanded with Lat/Lng
 const opportunitiesData = [
@@ -114,6 +115,36 @@ const opportunitiesData = [
   },
 ];
 
+const brazilianStates = [
+    { value: 'AC', label: 'Acre (AC)' },
+    { value: 'AL', label: 'Alagoas (AL)' },
+    { value: 'AP', label: 'Amapá (AP)' },
+    { value: 'AM', label: 'Amazonas (AM)' },
+    { value: 'BA', label: 'Bahia (BA)' },
+    { value: 'CE', label: 'Ceará (CE)' },
+    { value: 'DF', label: 'Distrito Federal (DF)' },
+    { value: 'ES', label: 'Espírito Santo (ES)' },
+    { value: 'GO', label: 'Goiás (GO)' },
+    { value: 'MA', label: 'Maranhão (MA)' },
+    { value: 'MT', label: 'Mato Grosso (MT)' },
+    { value: 'MS', label: 'Mato Grosso do Sul (MS)' },
+    { value: 'MG', label: 'Minas Gerais (MG)' },
+    { value: 'PA', label: 'Pará (PA)' },
+    { value: 'PB', label: 'Paraíba (PB)' },
+    { value: 'PR', label: 'Paraná (PR)' },
+    { value: 'PE', label: 'Pernambuco (PE)' },
+    { value: 'PI', label: 'Piauí (PI)' },
+    { value: 'RJ', label: 'Rio de Janeiro (RJ)' },
+    { value: 'RN', label: 'Rio Grande do Norte (RN)' },
+    { value: 'RS', label: 'Rio Grande do Sul (RS)' },
+    { value: 'RO', label: 'Rondônia (RO)' },
+    { value: 'RR', label: 'Roraima (RR)' },
+    { value: 'SC', label: 'Santa Catarina (SC)' },
+    { value: 'SP', label: 'São Paulo (SP)' },
+    { value: 'SE', label: 'Sergipe (SE)' },
+    { value: 'TO', label: 'Tocantins (TO)' },
+];
+
 interface OpportunitiesProps {
     onBack: () => void;
     onNavigate?: (view: 'home', hash?: string) => void;
@@ -131,6 +162,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
   const [activeMarkerId, setActiveMarkerId] = useState<number | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [userBalance, setUserBalance] = useState(50); // Mock user balance
+  const [isLoading, setIsLoading] = useState(false);
 
   // Simulated User Location (São Paulo Capital)
   const userLocation = { lat: -23.5505, lng: -46.6333, city: 'São Paulo' };
@@ -140,6 +172,15 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
       setUnlocked(false);
       setShowConfirmModal(false);
   }, [selectedOpp]);
+
+  // Simulate loading when filters change
+  React.useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setIsLoading(false);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [filterType, filterState, maxDistance, sortOption]);
 
   // Haversine formula to calculate distance in km
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -193,8 +234,13 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
         'RS': { top: '88%', left: '52%' },
         'BA': { top: '45%', left: '75%' },
         'GO': { top: '58%', left: '55%' },
+        'AM': { top: '25%', left: '30%' },
+        'PA': { top: '30%', left: '55%' },
+        'SC': { top: '82%', left: '56%' },
+        'CE': { top: '28%', left: '85%' },
+        'PE': { top: '35%', left: '90%' },
     };
-    return coords[uf] || { top: '50%', left: '50%' }; // Default center
+    return coords[uf] || { top: '50%', left: '50%' }; // Default center if not mapped
   };
 
   const handleUnlockClick = () => {
@@ -222,6 +268,20 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
       e.stopPropagation();
       setActiveMarkerId(prevId => prevId === id ? null : id);
   }
+
+  const handleShareWhatsApp = () => {
+      if (!selectedOpp) return;
+      
+      const text = `☀️ *Oportunidade SolarLink Encontrada!*\n\n` +
+                   `🏢 *Tipo:* ${selectedOpp.type}\n` +
+                   `📍 *Local:* ${selectedOpp.city} - ${selectedOpp.uf}\n` +
+                   `⚡ *Sistema Est:* ${selectedOpp.systemSize}\n` +
+                   `💰 *Conta Atual:* ${selectedOpp.billValue}\n\n` +
+                   `Veja mais detalhes na plataforma!`;
+      
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+  };
 
   // --- DETAIL VIEW ---
   if (selectedOpp) {
@@ -435,6 +495,15 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                                 <button onClick={handleBuyCredits} className="block w-full mt-3 text-center text-xs text-indigo-400 hover:text-indigo-300 hover:underline">
                                     Comprar mais créditos
                                 </button>
+                                
+                                {/* Share Button */}
+                                <button 
+                                    onClick={handleShareWhatsApp}
+                                    className="w-full mt-4 bg-[#25D366]/20 hover:bg-[#25D366]/30 border border-[#25D366]/40 text-[#25D366] text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                                >
+                                    <WhatsAppIcon className="w-4 h-4" />
+                                    Compartilhar Oportunidade
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -464,7 +533,8 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
             </div>
             
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-1 border border-slate-700 flex justify-between items-center px-3">
+                {/* Credit Balance Indicator */}
+                <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-1 border border-slate-700 flex justify-between items-center px-3 min-w-[180px]">
                     <span className="text-xs text-gray-400 uppercase font-bold mr-2">Seu Saldo:</span>
                     <span className="text-yellow-400 font-bold">{userBalance} disponíveis</span>
                 </div>
@@ -494,16 +564,16 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                         ))}
                     </div>
                     
+                    {/* UF Filter with All States */}
                     <select 
                         value={filterState}
                         onChange={(e) => setFilterState(e.target.value)}
-                        className="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg focus:ring-yellow-500 focus:border-yellow-500 block w-full sm:w-40 p-2.5 outline-none"
+                        className="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg focus:ring-yellow-500 focus:border-yellow-500 block w-full sm:w-48 p-2.5 outline-none"
                     >
                         <option value="Todos">Todos os Estados</option>
-                        <option value="SP">São Paulo (SP)</option>
-                        <option value="MG">Minas Gerais (MG)</option>
-                        <option value="PR">Paraná (PR)</option>
-                        <option value="MT">Mato Grosso (MT)</option>
+                        {brazilianStates.map(state => (
+                            <option key={state.value} value={state.value}>{state.label}</option>
+                        ))}
                     </select>
 
                     <select 
@@ -555,7 +625,22 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
             </div>
         </Card>
 
-        {viewMode === 'list' ? (
+        {isLoading ? (
+            /* Skeletons */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                     <div key={i} className="bg-slate-900/40 border border-slate-700 rounded-xl p-6 h-[250px] animate-pulse">
+                         <div className="h-6 w-24 bg-slate-800 rounded mb-4"></div>
+                         <div className="h-4 w-40 bg-slate-800 rounded mb-6"></div>
+                         <div className="space-y-3">
+                             <div className="h-4 w-full bg-slate-800 rounded"></div>
+                             <div className="h-4 w-3/4 bg-slate-800 rounded"></div>
+                             <div className="h-4 w-5/6 bg-slate-800 rounded"></div>
+                         </div>
+                     </div>
+                ))}
+            </div>
+        ) : viewMode === 'list' ? (
             /* Grid de Oportunidades (Lista) */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fadeIn">
                 {filteredData.map((opp) => (
@@ -578,19 +663,37 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                                     <MapPinIcon className="w-5 h-5 text-gray-500" />
                                     <span className="font-medium">{opp.city} - {opp.uf}</span>
                                 </div>
-                                <div className="flex items-center gap-3 text-gray-300">
-                                    <BoltIcon className="w-5 h-5 text-gray-500" />
-                                    <span>Conta: <span className="font-semibold text-white">{opp.billValue}</span></span>
-                                </div>
-                                {sortOption === 'distance' && (
-                                    <div className="flex items-center gap-3 text-gray-300">
-                                         <TargetIcon className="w-5 h-5 text-indigo-400" />
-                                         <span className="text-sm font-semibold text-indigo-300">Aprox. {Math.round(opp.distanceFromUser)} km</span>
+                                <div className="grid grid-cols-2 gap-3 mt-4">
+                                    <div className="bg-slate-800/50 p-2 rounded flex flex-col justify-center">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <BoltIcon className="w-3.5 h-3.5 text-yellow-500" />
+                                            <span className="text-[10px] text-gray-400 uppercase font-bold">Consumo</span>
+                                        </div>
+                                        <span className="text-sm font-bold text-white leading-tight">{opp.avgConsumption}</span>
                                     </div>
-                                )}
-                                <div className="flex items-center gap-3 text-gray-300">
-                                    <HomeIcon className="w-5 h-5 text-gray-500" />
-                                    <span>Telhado: {opp.roofType}</span>
+                                    <div className="bg-slate-800/50 p-2 rounded flex flex-col justify-center">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                             <div className="text-green-400 font-bold text-xs">$</div>
+                                             <span className="text-[10px] text-gray-400 uppercase font-bold">Conta</span>
+                                        </div>
+                                        <span className="text-sm font-bold text-white leading-tight">{opp.billValue}</span>
+                                    </div>
+                                    <div className="bg-slate-800/50 p-2 rounded flex flex-col justify-center">
+                                         <div className="flex items-center gap-1.5 mb-1">
+                                             <HomeIcon className="w-3.5 h-3.5 text-gray-400" />
+                                             <span className="text-[10px] text-gray-400 uppercase font-bold">Telhado</span>
+                                        </div>
+                                        <span className="text-sm font-bold text-white leading-tight truncate">{opp.roofType}</span>
+                                    </div>
+                                    {sortOption === 'distance' && (
+                                        <div className="bg-slate-800/50 p-2 rounded flex flex-col justify-center">
+                                             <div className="flex items-center gap-1.5 mb-1">
+                                                 <TargetIcon className="w-3.5 h-3.5 text-indigo-400" />
+                                                 <span className="text-[10px] text-gray-400 uppercase font-bold">Distância</span>
+                                            </div>
+                                            <span className="text-sm font-bold text-white leading-tight">{Math.round(opp.distanceFromUser)} km</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -613,6 +716,15 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                 className="w-full h-[600px] bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-700 relative overflow-hidden animate-fadeIn"
                 onClick={() => setActiveMarkerId(null)}
             >
+                {isLoading && (
+                    <div className="absolute inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-3">
+                             <div className="w-8 h-8 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                             <span className="text-white font-medium text-sm">Atualizando mapa...</span>
+                        </div>
+                    </div>
+                )}
+                
                 <div 
                     className="absolute inset-0 opacity-40 bg-no-repeat bg-center bg-contain"
                     style={{ 
@@ -640,13 +752,13 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                                 onClick={(e) => handleMarkerClick(e, opp.id)}
                                 onMouseEnter={() => setHoveredMapItem(opp.id)}
                                 onMouseLeave={() => setHoveredMapItem(null)}
-                                className="relative flex items-center justify-center w-8 h-8 -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform focus:outline-none"
+                                className="relative flex items-center justify-center w-8 h-8 -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform focus:outline-none group"
                             >
                                 <div className={`absolute w-full h-full rounded-full ${isActive ? '' : 'animate-ping'} opacity-75 ${
                                     opp.type === 'Residencial' ? 'bg-yellow-500' :
                                     opp.type === 'Comercial' ? 'bg-blue-500' : 'bg-purple-500'
                                 }`}></div>
-                                <div className={`relative w-4 h-4 rounded-full shadow-lg border-2 ${isActive ? 'border-white scale-110' : 'border-white'} ${
+                                <div className={`relative w-4 h-4 rounded-full shadow-lg border-2 transition-all ${isActive ? 'border-white scale-125' : 'border-white group-hover:scale-110'} ${
                                     opp.type === 'Residencial' ? 'bg-yellow-500' :
                                     opp.type === 'Comercial' ? 'bg-blue-500' : 'bg-purple-500'
                                 }`}></div>
@@ -717,7 +829,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
             </div>
         )}
         
-        {filteredData.length === 0 && (
+        {!isLoading && filteredData.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-gray-500 opacity-70 animate-fadeIn">
                 <TargetIcon className="w-16 h-16 mb-4 text-gray-600" />
                 <p className="text-xl font-medium">Nenhuma oportunidade encontrada com os filtros selecionados.</p>
