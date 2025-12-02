@@ -113,6 +113,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
   const [selectedOpp, setSelectedOpp] = useState<typeof opportunitiesData[0] | null>(null);
   const [unlocked, setUnlocked] = useState(false);
   const [hoveredMapItem, setHoveredMapItem] = useState<number | null>(null);
+  const [activeMarkerId, setActiveMarkerId] = useState<number | null>(null);
 
   // Reset unlocked state when changing opportunities
   React.useEffect(() => {
@@ -163,6 +164,11 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
           onNavigate('home', '#comprar');
       }
   };
+
+  const handleMarkerClick = (e: React.MouseEvent, id: number) => {
+      e.stopPropagation();
+      setActiveMarkerId(prevId => prevId === id ? null : id);
+  }
 
   // --- DETAIL VIEW ---
   if (selectedOpp) {
@@ -485,7 +491,10 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
             </div>
         ) : (
             /* Visualização Mapa Interativo */
-            <div className="w-full h-[600px] bg-slate-800/50 rounded-2xl border border-slate-700 relative overflow-hidden animate-fadeIn">
+            <div 
+                className="w-full h-[600px] bg-slate-800/50 rounded-2xl border border-slate-700 relative overflow-hidden animate-fadeIn"
+                onClick={() => setActiveMarkerId(null)}
+            >
                 <div 
                     className="absolute inset-0 opacity-40 bg-no-repeat bg-center bg-contain"
                     style={{ 
@@ -495,46 +504,67 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                 ></div>
                 
                 {/* Map Overlay Gradient */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent pointer-events-none"></div>
 
                 {filteredData.map(opp => {
                     const coords = getStateCoordinates(opp.uf);
+                    const isActive = activeMarkerId === opp.id;
+                    const isHovered = hoveredMapItem === opp.id;
+                    const showCard = isActive || isHovered;
+
                     return (
                         <div 
                             key={opp.id}
-                            className="absolute group"
+                            className="absolute"
                             style={{ top: coords.top, left: coords.left }}
                         >
                             <button
-                                onClick={() => { setSelectedOpp(opp); window.scrollTo(0, 0); }}
+                                onClick={(e) => handleMarkerClick(e, opp.id)}
                                 onMouseEnter={() => setHoveredMapItem(opp.id)}
                                 onMouseLeave={() => setHoveredMapItem(null)}
                                 className="relative flex items-center justify-center w-8 h-8 -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform focus:outline-none"
                             >
-                                <div className={`absolute w-full h-full rounded-full animate-ping opacity-75 ${
+                                <div className={`absolute w-full h-full rounded-full ${isActive ? '' : 'animate-ping'} opacity-75 ${
                                     opp.type === 'Residencial' ? 'bg-yellow-500' :
                                     opp.type === 'Comercial' ? 'bg-blue-500' : 'bg-purple-500'
                                 }`}></div>
-                                <div className={`relative w-4 h-4 rounded-full shadow-lg border-2 border-white ${
+                                <div className={`relative w-4 h-4 rounded-full shadow-lg border-2 ${isActive ? 'border-white scale-110' : 'border-white'} ${
                                     opp.type === 'Residencial' ? 'bg-yellow-500' :
                                     opp.type === 'Comercial' ? 'bg-blue-500' : 'bg-purple-500'
                                 }`}></div>
                             </button>
 
                             {/* Tooltip Card */}
-                            {hoveredMapItem === opp.id && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl p-4 z-50 animate-fadeIn pointer-events-none">
+                            {showCard && (
+                                <div 
+                                    onClick={(e) => {
+                                        if (isActive) {
+                                            e.stopPropagation();
+                                            setSelectedOpp(opp);
+                                            window.scrollTo(0, 0);
+                                        }
+                                    }}
+                                    className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl p-4 animate-fadeIn ${isActive ? 'z-50 cursor-pointer pointer-events-auto hover:bg-slate-800/90' : 'z-40 pointer-events-none'}`}
+                                >
                                     <div className="flex items-center gap-2 mb-2">
                                         <div className="p-1.5 bg-slate-700 rounded-full">
                                             {getIcon(opp.type, "w-3 h-3")}
                                         </div>
                                         <span className="text-xs font-bold text-white uppercase">{opp.type}</span>
+                                        {isActive && <span className="ml-auto text-[10px] text-green-400 font-bold tracking-wider">SELECIONADO</span>}
                                     </div>
                                     <p className="text-white font-semibold text-sm mb-1">{opp.city} - {opp.uf}</p>
                                     <div className="flex justify-between items-center text-xs text-gray-400">
                                         <span>Conta: {opp.billValue}</span>
                                         <span className="text-yellow-400 font-bold">{opp.credits} Créditos</span>
                                     </div>
+                                    {isActive && (
+                                        <div className="mt-3 pt-2 border-t border-slate-700 text-center">
+                                            <span className="text-xs text-yellow-400 font-bold underline decoration-yellow-400/30">
+                                                Clique para ver detalhes
+                                            </span>
+                                        </div>
+                                    )}
                                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-slate-800 border-r border-b border-slate-700 transform rotate-45"></div>
                                 </div>
                             )}
@@ -542,7 +572,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                     )
                 })}
 
-                <div className="absolute bottom-6 right-6 bg-slate-900/90 p-4 rounded-lg border border-slate-700 text-xs text-gray-400">
+                <div className="absolute bottom-6 right-6 bg-slate-900/90 p-4 rounded-lg border border-slate-700 text-xs text-gray-400 pointer-events-none">
                     <p className="font-bold text-white mb-2">Legenda:</p>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-3 h-3 rounded-full bg-yellow-500"></div>

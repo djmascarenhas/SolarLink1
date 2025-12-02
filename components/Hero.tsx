@@ -15,6 +15,10 @@ interface FormData {
   name: string;
   empresa: string;
   document: string;
+  cep: string;
+  address: string;
+  number: string;
+  complement: string;
   cidade: string;
   uf: string;
   email: string;
@@ -28,6 +32,9 @@ interface FormErrors {
   name?: string;
   empresa?: string;
   document?: string;
+  cep?: string;
+  address?: string;
+  number?: string;
   cidade?: string;
   uf?: string;
   email?: string;
@@ -98,6 +105,10 @@ const Hero: React.FC = () => {
     name: '',
     empresa: '',
     document: '',
+    cep: '',
+    address: '',
+    number: '',
+    complement: '',
     cidade: '',
     uf: '',
     email: '',
@@ -188,6 +199,15 @@ const Hero: React.FC = () => {
     } else if (!/^[A-Z]{2}$/.test(formData.uf)) {
       newErrors.uf = 'UF inválida.';
     }
+
+    if (!formData.cep.trim()) {
+      newErrors.cep = 'CEP obrigatório.';
+    } else if (formData.cep.length < 9) {
+      newErrors.cep = 'CEP incompleto.';
+    }
+
+    if (!formData.address.trim()) newErrors.address = 'Endereço obrigatório.';
+    if (!formData.number.trim()) newErrors.number = 'Número obrigatório.';
     
     if (!formData.email) {
       newErrors.email = 'O e-mail é obrigatório.';
@@ -244,6 +264,11 @@ const Hero: React.FC = () => {
         .replace(/(\d{5})(\d)/, '$1-$2')
         .replace(/(\d{4})(\d{1,4})/, '$1-$2')
         .slice(0, 15);
+    } else if (name === 'cep') {
+      formattedValue = value
+        .replace(/\D/g, '')
+        .replace(/^(\d{5})(\d)/, '$1-$2')
+        .slice(0, 9);
     } else if (name === 'uf') {
         formattedValue = value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2);
     } else if (name === 'document') {
@@ -291,6 +316,10 @@ const Hero: React.FC = () => {
         name: '',
         empresa: '',
         document: '',
+        cep: '',
+        address: '',
+        number: '',
+        complement: '',
         cidade: '',
         uf: '',
         email: '',
@@ -481,6 +510,68 @@ const Hero: React.FC = () => {
                                         />
                                         {errors.uf && <p className="text-red-400 text-xs mt-1">{errors.uf}</p>}
                                     </div>
+                                </div>
+
+                                {/* Address Fields */}
+                                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                   <div className="group/input md:col-span-1">
+                                      <label htmlFor="cep" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">CEP</label>
+                                      <input 
+                                        type="tel" 
+                                        id="cep" 
+                                        name="cep" 
+                                        required 
+                                        maxLength={9}
+                                        value={formData.cep}
+                                        onChange={handleChange}
+                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.cep ? 'border-red-500' : 'border-slate-700'}`} 
+                                        placeholder="00000-000"
+                                      />
+                                      {errors.cep && <p className="text-red-400 text-xs mt-1">{errors.cep}</p>}
+                                   </div>
+                                   <div className="group/input md:col-span-2">
+                                      <label htmlFor="address" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Endereço (Rua/Av)</label>
+                                      <input 
+                                        type="text" 
+                                        id="address" 
+                                        name="address" 
+                                        required 
+                                        value={formData.address}
+                                        onChange={handleChange}
+                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.address ? 'border-red-500' : 'border-slate-700'}`} 
+                                        placeholder="Av. Paulista"
+                                      />
+                                      {errors.address && <p className="text-red-400 text-xs mt-1">{errors.address}</p>}
+                                   </div>
+                                </div>
+
+                                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                   <div className="group/input md:col-span-1">
+                                      <label htmlFor="number" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Número</label>
+                                      <input 
+                                        type="text" 
+                                        id="number" 
+                                        name="number" 
+                                        required 
+                                        value={formData.number}
+                                        onChange={handleChange}
+                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.number ? 'border-red-500' : 'border-slate-700'}`} 
+                                        placeholder="1000"
+                                      />
+                                      {errors.number && <p className="text-red-400 text-xs mt-1">{errors.number}</p>}
+                                   </div>
+                                   <div className="group/input md:col-span-2">
+                                      <label htmlFor="complement" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Complemento</label>
+                                      <input 
+                                        type="text" 
+                                        id="complement" 
+                                        name="complement" 
+                                        value={formData.complement}
+                                        onChange={handleChange}
+                                        className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm"
+                                        placeholder="Sala 101, Bloco A"
+                                      />
+                                   </div>
                                 </div>
                                 
                                 <div className="group/input">
