@@ -8,8 +8,12 @@ import { HomeIcon } from './icons/HomeIcon';
 import { BuildingIcon } from './icons/BuildingIcon';
 import { FactoryIcon } from './icons/FactoryIcon';
 import { CoinsIcon } from './icons/CoinsIcon';
+import { ArrowLeftIcon } from './icons/ArrowLeftIcon';
+import { UserIcon } from './icons/UserIcon';
+import { SunIcon } from './icons/SunIcon';
+import { CheckIcon } from './icons/CheckIcon';
 
-// Mock Data
+// Mock Data Expanded
 const opportunitiesData = [
   {
     id: 1,
@@ -17,9 +21,13 @@ const opportunitiesData = [
     city: 'Campinas',
     uf: 'SP',
     billValue: 'R$ 450,00',
+    avgConsumption: '500 kWh',
     roofType: 'Telha Cerâmica',
     date: 'Hoje',
     credits: 1,
+    description: 'Residência térrea, fácil acesso ao telhado. Cliente busca reduzir a conta de luz e valorizar o imóvel. Possui espaço para cerca de 8 painéis.',
+    systemSize: '4.2 kWp',
+    estimatedSavings: 'R$ 5.400 / ano'
   },
   {
     id: 2,
@@ -27,9 +35,13 @@ const opportunitiesData = [
     city: 'Belo Horizonte',
     uf: 'MG',
     billValue: 'R$ 3.200,00',
+    avgConsumption: '3.500 kWh',
     roofType: 'Metálico',
     date: 'Ontem',
     credits: 3,
+    description: 'Pequena fábrica de móveis. Telhado metálico trapezoidal novo. Necessidade de expansão de carga futura.',
+    systemSize: '35 kWp',
+    estimatedSavings: 'R$ 38.000 / ano'
   },
   {
     id: 3,
@@ -37,9 +49,13 @@ const opportunitiesData = [
     city: 'Sorocaba',
     uf: 'SP',
     billValue: 'R$ 680,00',
+    avgConsumption: '750 kWh',
     roofType: 'Fibrocimento',
     date: 'Hoje',
     credits: 1,
+    description: 'Casa em condomínio fechado. Telhado com boa orientação Norte. Cliente já possui projeto elétrico da casa.',
+    systemSize: '6.0 kWp',
+    estimatedSavings: 'R$ 8.100 / ano'
   },
   {
     id: 4,
@@ -47,9 +63,13 @@ const opportunitiesData = [
     city: 'Cuiabá',
     uf: 'MT',
     billValue: 'R$ 15.000,00',
+    avgConsumption: '18.000 kWh',
     roofType: 'Solo',
     date: '2 dias atrás',
     credits: 5,
+    description: 'Investidor procura integrador para obra de usina de solo de 75kW. Terreno plano e limpo, padrão de entrada já adequado.',
+    systemSize: '75 kWp',
+    estimatedSavings: 'R$ 180.000 / ano'
   },
   {
     id: 5,
@@ -57,9 +77,13 @@ const opportunitiesData = [
     city: 'Curitiba',
     uf: 'PR',
     billValue: 'R$ 550,00',
+    avgConsumption: '600 kWh',
     roofType: 'Shingle',
     date: '3 horas atrás',
     credits: 1,
+    description: 'Sobrado com telhado Shingle. Cliente exigente com estética. Necessário microinversores.',
+    systemSize: '5.0 kWp',
+    estimatedSavings: 'R$ 6.600 / ano'
   },
   {
     id: 6,
@@ -67,19 +91,33 @@ const opportunitiesData = [
     city: 'Ribeirão Preto',
     uf: 'SP',
     billValue: 'R$ 2.100,00',
+    avgConsumption: '2.300 kWh',
     roofType: 'Laje Plana',
     date: 'Ontem',
     credits: 3,
+    description: 'Academia de ginástica. Laje plana com impermeabilização recente. Alta incidência solar.',
+    systemSize: '20 kWp',
+    estimatedSavings: 'R$ 25.000 / ano'
   },
 ];
 
 interface OpportunitiesProps {
     onBack: () => void;
+    onNavigate?: (view: 'home', hash?: string) => void;
 }
 
-const Opportunities: React.FC<OpportunitiesProps> = ({ onBack }) => {
+const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => {
   const [filterType, setFilterType] = useState('Todos');
   const [filterState, setFilterState] = useState('Todos');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [selectedOpp, setSelectedOpp] = useState<typeof opportunitiesData[0] | null>(null);
+  const [unlocked, setUnlocked] = useState(false);
+  const [hoveredMapItem, setHoveredMapItem] = useState<number | null>(null);
+
+  // Reset unlocked state when changing opportunities
+  React.useEffect(() => {
+      setUnlocked(false);
+  }, [selectedOpp]);
 
   const filteredData = opportunitiesData.filter(item => {
     const typeMatch = filterType === 'Todos' || item.type === filterType;
@@ -87,17 +125,243 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack }) => {
     return typeMatch && stateMatch;
   });
 
-  const getIcon = (type: string) => {
+  const getIcon = (type: string, className = "w-5 h-5") => {
     switch (type) {
-      case 'Residencial': return <HomeIcon className="w-5 h-5 text-yellow-400" />;
-      case 'Comercial': return <BuildingIcon className="w-5 h-5 text-blue-400" />;
-      case 'Usina': return <FactoryIcon className="w-5 h-5 text-purple-400" />;
-      default: return <HomeIcon className="w-5 h-5 text-gray-400" />;
+      case 'Residencial': return <HomeIcon className={`${className} text-yellow-400`} />;
+      case 'Comercial': return <BuildingIcon className={`${className} text-blue-400`} />;
+      case 'Usina': return <FactoryIcon className={`${className} text-purple-400`} />;
+      default: return <HomeIcon className={`${className} text-gray-400`} />;
     }
   };
 
+  // Helper to approximate coordinates on a Brazil map background
+  // Top/Left percentages
+  const getStateCoordinates = (uf: string) => {
+    const coords: Record<string, { top: string; left: string }> = {
+        'SP': { top: '72%', left: '60%' },
+        'MG': { top: '62%', left: '68%' },
+        'PR': { top: '78%', left: '55%' },
+        'MT': { top: '50%', left: '40%' },
+        'RJ': { top: '74%', left: '72%' },
+        'RS': { top: '88%', left: '52%' },
+        'BA': { top: '45%', left: '75%' },
+        'GO': { top: '58%', left: '55%' },
+    };
+    return coords[uf] || { top: '50%', left: '50%' }; // Default center
+  };
+
+  const handleUnlock = () => {
+      // Mock unlock logic
+      const confirmUnlock = window.confirm(`Deseja utilizar ${selectedOpp?.credits} créditos para desbloquear este contato?`);
+      if (confirmUnlock) {
+          setUnlocked(true);
+      }
+  };
+
+  const handleBuyCredits = () => {
+      if (onNavigate) {
+          onNavigate('home', '#comprar');
+      }
+  };
+
+  // --- DETAIL VIEW ---
+  if (selectedOpp) {
+      return (
+        <section className="min-h-screen pt-24 pb-20 bg-slate-900 text-white animate-fadeIn">
+            <div className="container mx-auto px-6">
+                {/* Nav Back */}
+                <button 
+                    onClick={() => setSelectedOpp(null)}
+                    className="group flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-8"
+                >
+                    <div className="p-2 rounded-full bg-slate-800 group-hover:bg-slate-700 border border-slate-700 transition-colors">
+                        <ArrowLeftIcon className="w-5 h-5" />
+                    </div>
+                    <span className="font-medium">Voltar para a lista</span>
+                </button>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Main Content */}
+                    <div className="lg:col-span-2 space-y-6">
+                        {/* Header Card */}
+                        <div className="bg-slate-800/60 backdrop-blur-md border border-slate-700 p-8 rounded-2xl relative overflow-hidden">
+                             <div className="absolute top-0 right-0 p-4 opacity-10">
+                                {getIcon(selectedOpp.type, "w-64 h-64")}
+                             </div>
+                             
+                             <div className="relative z-10">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-700 border border-slate-600 text-gray-300">
+                                        ID: #{selectedOpp.id.toString().padStart(4, '0')}
+                                    </span>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                                        selectedOpp.type === 'Residencial' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' :
+                                        selectedOpp.type === 'Comercial' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                                        'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                                    }`}>
+                                        {selectedOpp.type}
+                                    </span>
+                                </div>
+                                <h1 className="text-3xl font-bold text-white mb-2">Projeto Solar {selectedOpp.type}</h1>
+                                <div className="flex items-center gap-2 text-gray-400">
+                                    <MapPinIcon className="w-5 h-5" />
+                                    <span>{selectedOpp.city} - {selectedOpp.uf}</span>
+                                    <span className="mx-2">•</span>
+                                    <span>Publicado {selectedOpp.date}</span>
+                                </div>
+                             </div>
+                        </div>
+
+                        {/* Details Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <Card className="bg-slate-800/40">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="p-2 bg-slate-700/50 rounded-lg">
+                                        <BoltIcon className="w-6 h-6 text-yellow-400" />
+                                    </div>
+                                    <h3 className="font-semibold text-lg">Dados de Consumo</h3>
+                                </div>
+                                <ul className="space-y-3 text-gray-300">
+                                    <li className="flex justify-between border-b border-slate-700/50 pb-2">
+                                        <span className="text-gray-400">Valor da Conta:</span>
+                                        <span className="font-bold text-white">{selectedOpp.billValue}</span>
+                                    </li>
+                                    <li className="flex justify-between border-b border-slate-700/50 pb-2">
+                                        <span className="text-gray-400">Consumo Médio:</span>
+                                        <span className="font-bold text-white">{selectedOpp.avgConsumption}</span>
+                                    </li>
+                                    <li className="flex justify-between">
+                                        <span className="text-gray-400">Tensão:</span>
+                                        <span className="font-bold text-white">Bifásico 220V</span>
+                                    </li>
+                                </ul>
+                            </Card>
+
+                            <Card className="bg-slate-800/40">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="p-2 bg-slate-700/50 rounded-lg">
+                                        <SunIcon className="w-6 h-6 text-orange-400" />
+                                    </div>
+                                    <h3 className="font-semibold text-lg">Potencial Técnico</h3>
+                                </div>
+                                <ul className="space-y-3 text-gray-300">
+                                    <li className="flex justify-between border-b border-slate-700/50 pb-2">
+                                        <span className="text-gray-400">Tipo de Telhado:</span>
+                                        <span className="font-bold text-white">{selectedOpp.roofType}</span>
+                                    </li>
+                                    <li className="flex justify-between border-b border-slate-700/50 pb-2">
+                                        <span className="text-gray-400">Sistema Estimado:</span>
+                                        <span className="font-bold text-white">{selectedOpp.systemSize}</span>
+                                    </li>
+                                    <li className="flex justify-between">
+                                        <span className="text-gray-400">Economia Estimada:</span>
+                                        <span className="font-bold text-green-400">{selectedOpp.estimatedSavings}</span>
+                                    </li>
+                                </ul>
+                            </Card>
+                        </div>
+
+                        {/* Description */}
+                        <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-6">
+                            <h3 className="font-semibold text-lg mb-3 text-white">Sobre o Projeto</h3>
+                            <p className="text-gray-300 leading-relaxed">
+                                {selectedOpp.description}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Sidebar / Action Column */}
+                    <div className="lg:col-span-1">
+                        <div className="sticky top-24 space-y-6">
+                            {/* Contact Card */}
+                            <div className="bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-700 rounded-2xl p-6 shadow-xl">
+                                <div className="flex items-center gap-3 mb-6 pb-6 border-b border-slate-700">
+                                    <div className="p-3 bg-slate-700 rounded-full">
+                                        <UserIcon className="w-6 h-6 text-gray-300" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-white">Dados do Cliente</h3>
+                                        <p className="text-xs text-gray-400">Acesso exclusivo</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 mb-8 relative">
+                                    {/* Locked Overlay */}
+                                    {!unlocked && (
+                                        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-center p-4 rounded-lg border border-slate-700/50">
+                                            <div className="bg-slate-800 p-3 rounded-full mb-3 shadow-lg">
+                                                <CoinsIcon className="w-6 h-6 text-yellow-400" />
+                                            </div>
+                                            <p className="text-sm text-gray-300 font-medium">Use {selectedOpp.credits} créditos para visualizar</p>
+                                        </div>
+                                    )}
+
+                                    {/* Content (Blurred if locked) */}
+                                    <div className={!unlocked ? 'filter blur-sm select-none' : ''}>
+                                        <div className="mb-3">
+                                            <p className="text-xs text-gray-500 uppercase font-bold">Nome</p>
+                                            <p className="text-white font-medium">{unlocked ? 'Roberto Almeida' : 'Roberto A******'}</p>
+                                        </div>
+                                        <div className="mb-3">
+                                            <p className="text-xs text-gray-500 uppercase font-bold">Telefone</p>
+                                            <p className="text-white font-medium">{unlocked ? '(19) 99876-5432' : '(19) 9****-****'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-gray-500 uppercase font-bold">Email</p>
+                                            <p className="text-white font-medium">{unlocked ? 'roberto.almeida@email.com' : 'r******@email.com'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {!unlocked ? (
+                                    <Button 
+                                        variant="primary" 
+                                        className="w-full py-4 text-base shadow-lg shadow-yellow-500/20"
+                                        onClick={handleUnlock}
+                                    >
+                                        Desbloquear Contato
+                                    </Button>
+                                ) : (
+                                    <Button 
+                                        variant="secondary" 
+                                        className="w-full py-4 text-base flex items-center justify-center gap-2"
+                                        onClick={() => window.location.href = `https://wa.me/5519998765432`}
+                                    >
+                                        <CheckIcon className="w-5 h-5" />
+                                        Chamar no WhatsApp
+                                    </Button>
+                                )}
+                                
+                                <p className="text-xs text-center text-gray-500 mt-4">
+                                    Ao desbloquear, você concorda com nossos termos de uso. Garantia de contato válido.
+                                </p>
+                            </div>
+                            
+                            {/* Summary Box */}
+                            <div className="bg-slate-800/30 border border-slate-700/50 rounded-xl p-4">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-gray-400 text-sm">Custo desta oportunidade:</span>
+                                    <span className="text-yellow-400 font-bold">{selectedOpp.credits} Créditos</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-400 text-sm">Seu saldo atual:</span>
+                                    <span className="text-white font-bold">0 Créditos</span>
+                                </div>
+                                <button onClick={handleBuyCredits} className="block w-full mt-3 text-center text-xs text-indigo-400 hover:text-indigo-300 hover:underline">
+                                    Comprar mais créditos
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+      );
+  }
+
+  // --- LIST/MAP VIEW (Default) ---
   return (
-    <section className="min-h-screen pt-24 pb-20 bg-slate-900 text-white">
+    <section className="min-h-screen pt-24 pb-20 bg-slate-900 text-white animate-fadeIn">
       <div className="container mx-auto px-6">
         
         {/* Header da Página */}
@@ -107,95 +371,194 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack }) => {
                     onClick={onBack}
                     className="text-sm text-gray-400 hover:text-white flex items-center gap-1 mb-2 transition-colors"
                 >
-                    ← Voltar para Home
+                    <ArrowLeftIcon className="w-4 h-4" />
+                    Voltar para Home
                 </button>
                 <h1 className="text-3xl md:text-4xl font-bold">Oportunidades Disponíveis</h1>
                 <p className="text-gray-400 mt-2">Encontre o próximo projeto para sua empresa.</p>
             </div>
             
-            <div className="flex gap-3">
-                <div className="bg-slate-800 rounded-lg p-1 border border-slate-700">
-                    <span className="text-xs text-gray-500 uppercase font-bold px-2">Créditos:</span>
-                    <span className="text-yellow-400 font-bold px-2">0 disponíveis</span>
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <div className="bg-slate-800 rounded-lg p-1 border border-slate-700 flex justify-between items-center px-3">
+                    <span className="text-xs text-gray-500 uppercase font-bold mr-2">Créditos:</span>
+                    <span className="text-yellow-400 font-bold">0 disponíveis</span>
                 </div>
+                <Button variant="outline" className="px-4 py-2 text-sm" onClick={handleBuyCredits}>
+                    Comprar Créditos
+                </Button>
             </div>
         </div>
 
-        {/* Filtros */}
-        <Card className="mb-10 !p-4 flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-800/80">
-            <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                {['Todos', 'Residencial', 'Comercial', 'Usina'].map(type => (
-                    <button
-                        key={type}
-                        onClick={() => setFilterType(type)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            filterType === type 
-                            ? 'bg-yellow-500 text-slate-900 shadow-lg shadow-yellow-500/20' 
-                            : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
-                        }`}
-                    >
-                        {type}
-                    </button>
-                ))}
+        {/* Filtros e Toggle */}
+        <Card className="mb-10 !p-4 flex flex-col lg:flex-row gap-4 items-center justify-between bg-slate-800/80">
+            <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+                <div className="flex flex-wrap gap-2">
+                    {['Todos', 'Residencial', 'Comercial', 'Usina'].map(type => (
+                        <button
+                            key={type}
+                            onClick={() => setFilterType(type)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                filterType === type 
+                                ? 'bg-yellow-500 text-slate-900 shadow-lg shadow-yellow-500/20' 
+                                : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                            }`}
+                        >
+                            {type}
+                        </button>
+                    ))}
+                </div>
+                
+                <select 
+                    value={filterState}
+                    onChange={(e) => setFilterState(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-yellow-500 focus:border-yellow-500 block w-full sm:w-40 p-2.5 outline-none"
+                >
+                    <option value="Todos">Todos os Estados</option>
+                    <option value="SP">São Paulo (SP)</option>
+                    <option value="MG">Minas Gerais (MG)</option>
+                    <option value="PR">Paraná (PR)</option>
+                    <option value="MT">Mato Grosso (MT)</option>
+                </select>
             </div>
-            
-            <select 
-                value={filterState}
-                onChange={(e) => setFilterState(e.target.value)}
-                className="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-yellow-500 focus:border-yellow-500 block w-full md:w-40 p-2.5 outline-none"
-            >
-                <option value="Todos">Todos os Estados</option>
-                <option value="SP">São Paulo (SP)</option>
-                <option value="MG">Minas Gerais (MG)</option>
-                <option value="PR">Paraná (PR)</option>
-                <option value="MT">Mato Grosso (MT)</option>
-            </select>
+
+            <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
+                <button
+                    onClick={() => setViewMode('list')}
+                    className={`px-4 py-1.5 rounded text-sm font-medium transition-all ${viewMode === 'list' ? 'bg-slate-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                >
+                    Lista
+                </button>
+                <button
+                    onClick={() => setViewMode('map')}
+                    className={`px-4 py-1.5 rounded text-sm font-medium transition-all ${viewMode === 'map' ? 'bg-slate-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                >
+                    Mapa
+                </button>
+            </div>
         </Card>
 
-        {/* Grid de Oportunidades */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredData.map((opp) => (
-                <div 
-                    key={opp.id} 
-                    className="group bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden hover:border-yellow-500/50 hover:shadow-xl hover:shadow-yellow-500/10 transition-all duration-300 flex flex-col"
-                >
-                    <div className="p-6 flex-grow">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="flex items-center gap-2 bg-slate-900/80 py-1.5 px-3 rounded-full border border-slate-700">
-                                {getIcon(opp.type)}
-                                <span className="text-xs font-semibold uppercase tracking-wide text-gray-300">{opp.type}</span>
+        {viewMode === 'list' ? (
+            /* Grid de Oportunidades (Lista) */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fadeIn">
+                {filteredData.map((opp) => (
+                    <div 
+                        key={opp.id} 
+                        onClick={() => { setSelectedOpp(opp); window.scrollTo(0, 0); }}
+                        className="group bg-slate-800/50 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden hover:border-yellow-500/50 hover:shadow-xl hover:shadow-yellow-500/10 transition-all duration-300 flex flex-col cursor-pointer"
+                    >
+                        <div className="p-6 flex-grow">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="flex items-center gap-2 bg-slate-900/80 py-1.5 px-3 rounded-full border border-slate-700">
+                                    {getIcon(opp.type)}
+                                    <span className="text-xs font-semibold uppercase tracking-wide text-gray-300">{opp.type}</span>
+                                </div>
+                                <span className="text-xs text-gray-500 font-medium">{opp.date}</span>
                             </div>
-                            <span className="text-xs text-gray-500 font-medium">{opp.date}</span>
+                            
+                            <div className="space-y-3 mb-6">
+                                <div className="flex items-center gap-3 text-gray-200">
+                                    <MapPinIcon className="w-5 h-5 text-gray-500" />
+                                    <span className="font-medium">{opp.city} - {opp.uf}</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-gray-200">
+                                    <BoltIcon className="w-5 h-5 text-gray-500" />
+                                    <span>Conta: <span className="font-semibold text-white">{opp.billValue}</span></span>
+                                </div>
+                                <div className="flex items-center gap-3 text-gray-200">
+                                    <HomeIcon className="w-5 h-5 text-gray-500" />
+                                    <span>Telhado: {opp.roofType}</span>
+                                </div>
+                            </div>
                         </div>
-                        
-                        <div className="space-y-3 mb-6">
-                            <div className="flex items-center gap-3 text-gray-200">
-                                <MapPinIcon className="w-5 h-5 text-gray-500" />
-                                <span className="font-medium">{opp.city} - {opp.uf}</span>
+
+                        <div className="bg-slate-900/50 p-4 border-t border-slate-700 flex justify-between items-center group-hover:bg-slate-900/80 transition-colors">
+                            <div className="flex items-center gap-1.5 text-yellow-400 font-bold">
+                                <CoinsIcon className="w-4 h-4" />
+                                <span>{opp.credits} Crédito{opp.credits > 1 ? 's' : ''}</span>
                             </div>
-                            <div className="flex items-center gap-3 text-gray-200">
-                                <BoltIcon className="w-5 h-5 text-gray-500" />
-                                <span>Conta: <span className="font-semibold text-white">{opp.billValue}</span></span>
-                            </div>
-                            <div className="flex items-center gap-3 text-gray-200">
-                                <HomeIcon className="w-5 h-5 text-gray-500" />
-                                <span>Telhado: {opp.roofType}</span>
-                            </div>
+                            <span className="text-sm font-semibold text-yellow-400 group-hover:underline">
+                                Ver detalhes →
+                            </span>
                         </div>
                     </div>
+                ))}
+            </div>
+        ) : (
+            /* Visualização Mapa Interativo */
+            <div className="w-full h-[600px] bg-slate-800/50 rounded-2xl border border-slate-700 relative overflow-hidden animate-fadeIn">
+                <div 
+                    className="absolute inset-0 opacity-40 bg-no-repeat bg-center bg-contain"
+                    style={{ 
+                        backgroundImage: `url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Brazil_Blank_Map.svg/2000px-Brazil_Blank_Map.svg.png')`,
+                        filter: 'invert(1) opacity(0.5)'
+                    }}
+                ></div>
+                
+                {/* Map Overlay Gradient */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
 
-                    <div className="bg-slate-900/50 p-4 border-t border-slate-700 flex justify-between items-center group-hover:bg-slate-900/80 transition-colors">
-                        <div className="flex items-center gap-1.5 text-yellow-400 font-bold">
-                            <CoinsIcon className="w-4 h-4" />
-                            <span>{opp.credits} Crédito{opp.credits > 1 ? 's' : ''}</span>
+                {filteredData.map(opp => {
+                    const coords = getStateCoordinates(opp.uf);
+                    return (
+                        <div 
+                            key={opp.id}
+                            className="absolute group"
+                            style={{ top: coords.top, left: coords.left }}
+                        >
+                            <button
+                                onClick={() => { setSelectedOpp(opp); window.scrollTo(0, 0); }}
+                                onMouseEnter={() => setHoveredMapItem(opp.id)}
+                                onMouseLeave={() => setHoveredMapItem(null)}
+                                className="relative flex items-center justify-center w-8 h-8 -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform focus:outline-none"
+                            >
+                                <div className={`absolute w-full h-full rounded-full animate-ping opacity-75 ${
+                                    opp.type === 'Residencial' ? 'bg-yellow-500' :
+                                    opp.type === 'Comercial' ? 'bg-blue-500' : 'bg-purple-500'
+                                }`}></div>
+                                <div className={`relative w-4 h-4 rounded-full shadow-lg border-2 border-white ${
+                                    opp.type === 'Residencial' ? 'bg-yellow-500' :
+                                    opp.type === 'Comercial' ? 'bg-blue-500' : 'bg-purple-500'
+                                }`}></div>
+                            </button>
+
+                            {/* Tooltip Card */}
+                            {hoveredMapItem === opp.id && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl p-4 z-50 animate-fadeIn pointer-events-none">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <div className="p-1.5 bg-slate-700 rounded-full">
+                                            {getIcon(opp.type, "w-3 h-3")}
+                                        </div>
+                                        <span className="text-xs font-bold text-white uppercase">{opp.type}</span>
+                                    </div>
+                                    <p className="text-white font-semibold text-sm mb-1">{opp.city} - {opp.uf}</p>
+                                    <div className="flex justify-between items-center text-xs text-gray-400">
+                                        <span>Conta: {opp.billValue}</span>
+                                        <span className="text-yellow-400 font-bold">{opp.credits} Créditos</span>
+                                    </div>
+                                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-slate-800 border-r border-b border-slate-700 transform rotate-45"></div>
+                                </div>
+                            )}
                         </div>
-                        <Button variant="primary" className="py-2 px-4 text-sm !shadow-none">
-                            Desbloquear
-                        </Button>
+                    )
+                })}
+
+                <div className="absolute bottom-6 right-6 bg-slate-900/90 p-4 rounded-lg border border-slate-700 text-xs text-gray-400">
+                    <p className="font-bold text-white mb-2">Legenda:</p>
+                    <div className="flex items-center gap-2 mb-1">
+                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <span>Residencial</span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <span>Comercial</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                        <span>Usina / Grande Porte</span>
                     </div>
                 </div>
-            ))}
-        </div>
+            </div>
+        )}
         
         {filteredData.length === 0 && (
             <div className="text-center py-20 opacity-60">

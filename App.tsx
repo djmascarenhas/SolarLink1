@@ -16,8 +16,18 @@ type ViewState = 'home' | 'opportunities';
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
 
-  const handleNavigate = (view: ViewState) => {
+  const handleNavigate = (view: ViewState, hash?: string) => {
     setCurrentView(view);
+    
+    if (hash && view === 'home') {
+        // Allow time for the home components to mount before scrolling
+        setTimeout(() => {
+            const element = document.getElementById(hash.replace('#', ''));
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+            }
+        }, 100);
+    }
   };
 
   return (
@@ -35,7 +45,10 @@ const App: React.FC = () => {
             <CtaSection onNavigate={handleNavigate} />
           </>
         ) : (
-          <Opportunities onBack={() => handleNavigate('home')} />
+          <Opportunities 
+            onBack={() => handleNavigate('home')} 
+            onNavigate={handleNavigate} 
+          />
         )}
       </main>
       <Footer />
