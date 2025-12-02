@@ -123,12 +123,14 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
   const [filterType, setFilterType] = useState('Todos');
   const [filterState, setFilterState] = useState('Todos');
   const [maxDistance, setMaxDistance] = useState<number>(2000); // Slider value in km
+  const [sortOption, setSortOption] = useState<'default' | 'distance'>('default');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [selectedOpp, setSelectedOpp] = useState<typeof opportunitiesData[0] | null>(null);
   const [unlocked, setUnlocked] = useState(false);
   const [hoveredMapItem, setHoveredMapItem] = useState<number | null>(null);
   const [activeMarkerId, setActiveMarkerId] = useState<number | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [userBalance, setUserBalance] = useState(50); // Mock user balance
 
   // Simulated User Location (São Paulo Capital)
   const userLocation = { lat: -23.5505, lng: -46.6333, city: 'São Paulo' };
@@ -152,15 +154,24 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
     return R * c; // Distance in km
   };
 
-  const filteredData = opportunitiesData.filter(item => {
-    const typeMatch = filterType === 'Todos' || item.type === filterType;
-    const stateMatch = filterState === 'Todos' || item.uf === filterState;
-    
-    const distance = calculateDistance(userLocation.lat, userLocation.lng, item.lat, item.lng);
-    const distanceMatch = distance <= maxDistance;
-
-    return typeMatch && stateMatch && distanceMatch;
-  });
+  // Process data: Map -> Filter -> Sort
+  const filteredData = opportunitiesData
+    .map(item => ({
+        ...item,
+        distanceFromUser: calculateDistance(userLocation.lat, userLocation.lng, item.lat, item.lng)
+    }))
+    .filter(item => {
+        const typeMatch = filterType === 'Todos' || item.type === filterType;
+        const stateMatch = filterState === 'Todos' || item.uf === filterState;
+        const distanceMatch = item.distanceFromUser <= maxDistance;
+        return typeMatch && stateMatch && distanceMatch;
+    })
+    .sort((a, b) => {
+        if (sortOption === 'distance') {
+            return a.distanceFromUser - b.distanceFromUser;
+        }
+        return 0; // Default (Mock data id/date order)
+    });
 
   const getIcon = (type: string, className = "w-5 h-5") => {
     switch (type) {
@@ -191,8 +202,14 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
   };
 
   const confirmUnlockAction = () => {
-      setUnlocked(true);
-      setShowConfirmModal(false);
+      if (selectedOpp && userBalance >= selectedOpp.credits) {
+        setUserBalance(prev => prev - selectedOpp.credits);
+        setUnlocked(true);
+        setShowConfirmModal(false);
+      } else {
+          alert("Saldo insuficiente!");
+          setShowConfirmModal(false);
+      }
   };
 
   const handleBuyCredits = () => {
@@ -413,7 +430,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-gray-400 text-sm">Seu saldo atual:</span>
-                                    <span className="text-white font-bold">0 Créditos</span>
+                                    <span className="text-white font-bold">{userBalance} Créditos</span>
                                 </div>
                                 <button onClick={handleBuyCredits} className="block w-full mt-3 text-center text-xs text-indigo-400 hover:text-indigo-300 hover:underline">
                                     Comprar mais créditos
@@ -448,8 +465,8 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
             
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-1 border border-slate-700 flex justify-between items-center px-3">
-                    <span className="text-xs text-gray-400 uppercase font-bold mr-2">Créditos:</span>
-                    <span className="text-yellow-400 font-bold">0 disponíveis</span>
+                    <span className="text-xs text-gray-400 uppercase font-bold mr-2">Seu Saldo:</span>
+                    <span className="text-yellow-400 font-bold">{userBalance} disponíveis</span>
                 </div>
                 <Button variant="outline" className="px-4 py-2 text-sm bg-slate-900/50 hover:bg-slate-800" onClick={handleBuyCredits}>
                     Comprar Créditos
@@ -487,6 +504,15 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                         <option value="MG">Minas Gerais (MG)</option>
                         <option value="PR">Paraná (PR)</option>
                         <option value="MT">Mato Grosso (MT)</option>
+                    </select>
+
+                    <select 
+                        value={sortOption}
+                        onChange={(e) => setSortOption(e.target.value as 'default' | 'distance')}
+                        className="bg-slate-800 border border-slate-600 text-white text-sm rounded-lg focus:ring-yellow-500 focus:border-yellow-500 block w-full sm:w-44 p-2.5 outline-none"
+                    >
+                        <option value="default">Mais Recentes</option>
+                        <option value="distance">Menor Distância</option>
                     </select>
                 </div>
 
@@ -556,6 +582,12 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                                     <BoltIcon className="w-5 h-5 text-gray-500" />
                                     <span>Conta: <span className="font-semibold text-white">{opp.billValue}</span></span>
                                 </div>
+                                {sortOption === 'distance' && (
+                                    <div className="flex items-center gap-3 text-gray-300">
+                                         <TargetIcon className="w-5 h-5 text-indigo-400" />
+                                         <span className="text-sm font-semibold text-indigo-300">Aprox. {Math.round(opp.distanceFromUser)} km</span>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-3 text-gray-300">
                                     <HomeIcon className="w-5 h-5 text-gray-500" />
                                     <span>Telhado: {opp.roofType}</span>
