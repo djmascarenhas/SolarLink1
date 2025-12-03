@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ConsumerData } from './ConsumerForm';
 import { GoogleGenAI } from "@google/genai";
+import { supabase } from '../../lib/supabaseClient';
 import { SendIcon } from '../icons/SendIcon';
 import { UserCircleIcon } from '../icons/UserCircleIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
@@ -15,9 +16,10 @@ interface Message {
 
 interface ConsumerChatProps {
     userData: ConsumerData;
+    initialContext?: string; // e.g., "Residencial", "Usina"
 }
 
-const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData }) => {
+const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -32,24 +34,37 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData }) => {
         scrollToBottom();
     }, [messages, isTyping]);
 
-    // Initial greeting from AI
+    // Initial greeting
     useEffect(() => {
         if (!hasInitialized.current) {
             hasInitialized.current = true;
             setIsTyping(true);
             
-            setTimeout(() => {
+            const contextMsg = initialContext ? ` Vi que você tem interesse em projetos do tipo: ${initialContext}.` : '';
+
+            setTimeout(async () => {
+                const welcomeText = `Olá, ${userData.name}! Sou a Solara, sua assistente de energia.${contextMsg} Como posso te ajudar a economizar hoje?`;
+                
                 const initialMessage: Message = {
-                    id: 1,
-                    text: `Olá, ${userData.name}! Sou o assistente virtual da SolarLink. Vi que você é de ${userData.city}/${userData.uf}. Como posso te ajudar hoje? \n\nPosso estimar sua economia com energia solar ou tirar dúvidas sobre como funciona. O que prefere?`,
+                    id: Date.now(),
+                    text: welcomeText,
                     sender: 'ai',
                     timestamp: new Date()
                 };
                 setMessages([initialMessage]);
                 setIsTyping(false);
+
+                // Save initial message to DB if ID exists
+                if (userData.id && !userData.id.startsWith('temp-')) {
+                    await supabase.from('chat_logs').insert({
+                        lead_id: userData.id,
+                        role: 'assistant',
+                        content: welcomeText
+                    });
+                }
             }, 1500);
         }
-    }, [userData]);
+    }, [userData, initialContext]);
 
     const handleSendMessage = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -66,38 +81,49 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData }) => {
         setInputValue('');
         setIsTyping(true);
 
+        // 1. Save User Message to DB
+        if (userData.id && !userData.id.startsWith('temp-')) {
+            supabase.from('chat_logs').insert({
+                lead_id: userData.id,
+                role: 'user',
+                content: userMsg.text
+            }).then(() => {});
+        }
+
         try {
+            // NOTE: Here we could call our Edge Function 'solara-agent'
+            // For now, we keep using Gemini Client Side for demo speed, 
+            // but wrapped to act as "Solara" backend logic.
+            
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             
-            // Construct conversation history for context
-            const history = messages.map(m => `${m.sender === 'user' ? 'Usuário' : 'Assistente'}: ${m.text}`).join('\n');
+            const history = messages.map(m => `${m.sender === 'user' ? 'Usuário' : 'Solara'}: ${m.text}`).join('\n');
             const prompt = `
-            Você é um consultor especialista em energia solar da SolarLink.
+            Você é a SOLARA, uma IA especialista em engenharia e vendas de energia solar.
             
-            Dados do usuário:
+            Contexto do Cliente:
             Nome: ${userData.name}
-            Cidade: ${userData.city} - ${userData.uf}
+            Local: ${userData.city}/${userData.uf}
+            Interesse Inicial: ${initialContext || 'Geral'}
             
-            Histórico da conversa:
+            Histórico:
             ${history}
             Usuário: ${userMsg.text}
             
-            Instruções:
-            1. Seja amigável, educado e persuasivo, mas honesto.
-            2. Se o usuário perguntar sobre economia, pergunte o valor médio da conta de luz dele (em Reais).
-            3. Se ele der o valor da conta, faça uma estimativa simples (considerando payback médio de 3 a 4 anos e economia de 90-95%).
-            4. Tire dúvidas sobre equipamentos, instalação, garantia, etc.
-            5. Seu objetivo final é fazer com que ele queira receber um orçamento de um integrador parceiro (mas não force demais).
-            6. Responda de forma concisa (máximo 3 parágrafos curtos).
+            Diretrizes:
+            1. Aja como um backend "Gerencia" que está qualificando um lead.
+            2. Tente descobrir o valor da conta de luz (R$) e o tipo de telhado.
+            3. Se já tiver esses dados, sugira agendar uma visita técnica ou orçamento.
+            4. Use linguagem natural, empática e profissional.
             
-            Responda como o Assistente:`;
+            Responda como Solara:`;
 
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
             });
 
-            const aiText = response.text || "Desculpe, estou com dificuldade de conexão. Poderia repetir?";
+            const aiText = response.text || "Estou processando seus dados, um momento...";
 
             const aiMsg: Message = {
                 id: Date.now() + 1,
@@ -107,11 +133,21 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData }) => {
             };
 
             setMessages(prev => [...prev, aiMsg]);
+
+            // 2. Save AI Response to DB
+            if (userData.id && !userData.id.startsWith('temp-')) {
+                await supabase.from('chat_logs').insert({
+                    lead_id: userData.id,
+                    role: 'assistant',
+                    content: aiText
+                });
+            }
+
         } catch (error) {
             console.error(error);
             const errorMsg: Message = {
                 id: Date.now() + 1,
-                text: "Tive um problema técnico. Podemos continuar em instantes?",
+                text: "Estou com uma instabilidade na conexão com o servidor da Gerencia. Podemos continuar?",
                 sender: 'ai',
                 timestamp: new Date()
             };
@@ -123,30 +159,33 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData }) => {
 
     return (
         <div className="flex flex-col h-full bg-slate-900">
-            {/* Chat Header */}
+            {/* Header */}
             <div className="bg-slate-800 border-b border-slate-700 p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg relative">
                     <SparklesIcon className="w-6 h-6 text-white" />
+                    <div className="absolute -bottom-1 -right-1 bg-slate-900 rounded-full p-0.5">
+                        <div className="w-3 h-3 bg-green-500 rounded-full border-2 border-slate-900"></div>
+                    </div>
                 </div>
                 <div>
-                    <h3 className="font-bold text-white">Consultor SolarLink</h3>
-                    <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                        <span className="text-xs text-gray-400">Online agora</span>
-                    </div>
+                    <h3 className="font-bold text-white flex items-center gap-2">
+                        Solara 
+                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">AI Agent</span>
+                    </h3>
+                    <p className="text-xs text-gray-400">Conectada à Gerencia</p>
                 </div>
             </div>
 
-            {/* Messages Area */}
+            {/* Chat Area */}
             <div className="flex-grow overflow-y-auto p-4 space-y-4 custom-scrollbar">
                 {messages.map((msg) => (
                     <div 
                         key={msg.id} 
                         className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                        <div className={`flex items-end gap-2 max-w-[85%] md:max-w-[70%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                            {/* Avatar */}
-                            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden">
+                        <div className={`flex items-end gap-2 max-w-[85%] md:max-w-[75%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                             {/* Avatar */}
+                             <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden">
                                 {msg.sender === 'user' ? (
                                     <div className="w-full h-full bg-slate-700 flex items-center justify-center">
                                         <UserCircleIcon className="w-6 h-6 text-gray-400" />
@@ -158,14 +197,13 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData }) => {
                                 )}
                             </div>
 
-                            {/* Bubble */}
-                            <div className={`p-4 rounded-2xl shadow-md text-sm leading-relaxed ${
+                            <div className={`p-3.5 rounded-2xl shadow-md text-sm leading-relaxed ${
                                 msg.sender === 'user' 
                                 ? 'bg-indigo-600 text-white rounded-br-none' 
                                 : 'bg-slate-800 text-gray-200 border border-slate-700 rounded-bl-none'
                             }`}>
                                 <p className="whitespace-pre-wrap">{msg.text}</p>
-                                <span className={`text-[10px] block mt-2 opacity-70 ${msg.sender === 'user' ? 'text-indigo-200' : 'text-gray-500'}`}>
+                                <span className={`text-[10px] block mt-1.5 opacity-60 text-right ${msg.sender === 'user' ? 'text-indigo-200' : 'text-gray-500'}`}>
                                     {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
@@ -174,17 +212,12 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData }) => {
                 ))}
                 
                 {isTyping && (
-                    <div className="flex justify-start">
-                        <div className="flex items-end gap-2">
-                             <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center">
-                                <SparklesIcon className="w-5 h-5 text-white" />
-                            </div>
-                            <div className="bg-slate-800 border border-slate-700 p-4 rounded-2xl rounded-bl-none">
-                                <div className="flex gap-1">
-                                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></span>
-                                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-75"></span>
-                                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce delay-150"></span>
-                                </div>
+                    <div className="flex justify-start pl-10">
+                        <div className="bg-slate-800 border border-slate-700 p-3 rounded-2xl rounded-bl-none">
+                            <div className="flex gap-1.5">
+                                <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce"></span>
+                                <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce delay-75"></span>
+                                <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce delay-150"></span>
                             </div>
                         </div>
                     </div>
@@ -192,22 +225,22 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData }) => {
                 <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
+            {/* Input */}
             <div className="p-4 bg-slate-800 border-t border-slate-700">
-                <form onSubmit={handleSendMessage} className="flex gap-2">
+                <form onSubmit={handleSendMessage} className="flex gap-2 relative">
                     <input 
                         type="text" 
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         placeholder="Digite sua mensagem..." 
-                        className="flex-grow bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder-gray-500"
+                        className="flex-grow bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all placeholder-gray-500 pr-12"
                     />
                     <button 
                         type="submit" 
                         disabled={!inputValue.trim() || isTyping}
-                        className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-gray-500 text-white p-3 rounded-xl transition-colors flex items-center justify-center shadow-lg shadow-indigo-900/20"
+                        className="absolute right-2 top-2 bottom-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-transparent disabled:text-gray-600 text-white p-2 rounded-lg transition-colors flex items-center justify-center aspect-square"
                     >
-                        <SendIcon className="w-6 h-6" />
+                        <SendIcon className="w-5 h-5" />
                     </button>
                 </form>
             </div>

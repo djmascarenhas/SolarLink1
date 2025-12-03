@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
 import Button from '../common/Button';
-import { ArrowLeftIcon } from '../icons/ArrowLeftIcon'; // Reusing arrow icon, ensure it's imported or available
+import { supabase } from '../../lib/supabaseClient';
 
 export interface ConsumerData {
+    id?: string; // ID gerado pelo Supabase
     name: string;
     whatsapp: string;
     city: string;
@@ -21,26 +22,57 @@ const ConsumerForm: React.FC<ConsumerFormProps> = ({ onSubmit }) => {
         city: '',
         uf: ''
     });
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Basic validation
+        
         if (formData.name && formData.whatsapp && formData.city && formData.uf) {
-            onSubmit(formData);
+            setIsLoading(true);
+            try {
+                // Tenta salvar no Supabase
+                const { data, error } = await supabase
+                    .from('leads')
+                    .insert([
+                        { 
+                            name: formData.name, 
+                            whatsapp: formData.whatsapp, 
+                            city: formData.city, 
+                            uf: formData.uf,
+                            status: 'new'
+                        }
+                    ])
+                    .select()
+                    .single();
+
+                if (error) {
+                    console.error("Erro Supabase:", error);
+                    // Fallback para fluxo local se sem conexão/keys
+                    onSubmit({ ...formData, id: 'temp-' + Date.now() }); 
+                } else if (data) {
+                    // Passa o ID real do banco para o próximo passo
+                    onSubmit({ ...formData, id: data.id });
+                }
+            } catch (err) {
+                 console.error("Erro conexão:", err);
+                 onSubmit({ ...formData, id: 'temp-' + Date.now() });
+            } finally {
+                setIsLoading(false);
+            }
         } else {
-            alert("Por favor, preencha todos os campos para iniciar a consultoria.");
+            alert("Por favor, preencha todos os campos.");
         }
     };
 
     return (
         <div className="p-8 md:p-12 flex flex-col justify-center h-full animate-fadeIn">
             <h2 className="text-2xl font-bold text-white mb-6">Vamos começar?</h2>
-            <p className="text-gray-400 mb-8">Precisamos de poucos dados para personalizar seu atendimento.</p>
+            <p className="text-gray-400 mb-8">Precisamos de poucos dados para a Solara (nossa IA) personalizar seu atendimento.</p>
             
             <form onSubmit={handleSubmit} className="space-y-6 max-w-md mx-auto w-full">
                 <div>
@@ -98,9 +130,10 @@ const ConsumerForm: React.FC<ConsumerFormProps> = ({ onSubmit }) => {
                 <Button 
                     variant="primary" 
                     type="submit" 
-                    className="w-full py-4 mt-4 bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg shadow-indigo-900/50"
+                    disabled={isLoading}
+                    className="w-full py-4 mt-4 bg-indigo-600 hover:bg-indigo-500 text-white border-none shadow-lg shadow-indigo-900/50 flex justify-center"
                 >
-                    Iniciar Chat Inteligente
+                    {isLoading ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Iniciar Chat Inteligente'}
                 </Button>
             </form>
         </div>
