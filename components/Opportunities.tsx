@@ -211,6 +211,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate, initi
   // User Location State
   const [userLocation, setUserLocation] = useState({ lat: -23.5505, lng: -46.6333, city: 'São Paulo', isReal: false });
   const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   // Apply initial filter if provided
   useEffect(() => {
@@ -230,6 +231,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate, initi
 
   // Geolocation Handler
   const getUserLocation = () => {
+    setLocationError(null);
     if (navigator.geolocation) {
       setLocationLoading(true);
       navigator.geolocation.getCurrentPosition(
@@ -246,11 +248,28 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate, initi
         (error) => {
           console.error("Error getting location", error);
           setLocationLoading(false);
-          alert("Não foi possível obter sua localização. Verifique se você permitiu o acesso no navegador.");
-        }
+          let errorMessage = "Erro ao obter localização.";
+          switch(error.code) {
+              case error.PERMISSION_DENIED:
+                  errorMessage = "Permissão negada. Ative a localização.";
+                  break;
+              case error.POSITION_UNAVAILABLE:
+                  errorMessage = "Informações de local indisponíveis.";
+                  break;
+              case error.TIMEOUT:
+                  errorMessage = "Tempo limite esgotado.";
+                  break;
+          }
+          setLocationError(errorMessage);
+          
+          // Clear error after 5 seconds
+          setTimeout(() => setLocationError(null), 5000);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
-      alert("Geolocalização não é suportada pelo seu navegador.");
+        setLocationError("Geolocalização não suportada.");
+        setTimeout(() => setLocationError(null), 5000);
     }
   };
 
@@ -442,22 +461,30 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate, initi
                 </div>
 
                 {/* Geolocation Button */}
-                <button 
-                    onClick={getUserLocation}
-                    disabled={locationLoading}
-                    className={`text-xs border px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
-                        userLocation.isReal 
-                        ? 'bg-green-500/10 border-green-500 text-green-400'
-                        : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-yellow-500'
-                    }`}
-                >
-                    {locationLoading ? (
-                        <div className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                        <MapPinIcon className="w-3 h-3" />
+                <div className="relative flex flex-col items-center">
+                    <button 
+                        onClick={getUserLocation}
+                        disabled={locationLoading}
+                        className={`text-xs border px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                            userLocation.isReal 
+                            ? 'bg-green-500/10 border-green-500 text-green-400'
+                            : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-yellow-500'
+                        }`}
+                    >
+                        {locationLoading ? (
+                            <div className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                            <MapPinIcon className="w-3 h-3" />
+                        )}
+                        {locationLoading ? 'Buscando...' : userLocation.isReal ? 'Localização Ativa' : 'Usar minha localização'}
+                    </button>
+                    {locationError && (
+                        <div className="absolute top-full mt-2 z-50 bg-red-500/90 text-white text-xs px-2 py-1.5 rounded shadow-lg whitespace-nowrap animate-fadeIn border border-red-400">
+                             {locationError}
+                             <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-8 border-transparent border-b-red-500/90"></div>
+                        </div>
                     )}
-                    {locationLoading ? 'Buscando...' : userLocation.isReal ? 'Localização Ativa' : 'Usar minha localização'}
-                </button>
+                </div>
 
                 <div className="flex items-center gap-3 w-full max-w-md">
                      <span className="text-xs font-mono text-gray-500">0km</span>
