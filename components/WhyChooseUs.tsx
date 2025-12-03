@@ -25,7 +25,7 @@ const features = [
 
 const WhyChooseUs: React.FC = () => {
   return (
-    <section className="py-20 bg-slate-900">
+    <section id="vantagens" className="py-20 bg-slate-900">
       <div className="container mx-auto px-6">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-white">Por que escolher a SolarLink?</h2>

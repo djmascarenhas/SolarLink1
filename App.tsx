@@ -12,11 +12,12 @@ import Footer from './components/Footer';
 import Opportunities from './components/Opportunities';
 import BuyCredits from './components/BuyCredits';
 import ConsumerPortal from './components/consumer/ConsumerPortal';
+import PortalHub from './components/PortalHub';
 
-type ViewState = 'home' | 'opportunities' | 'buy_credits' | 'consumer';
+type ViewState = 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer';
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<ViewState>('home');
+  const [currentView, setCurrentView] = useState<ViewState>('portal');
   const [oppFilter, setOppFilter] = useState<string | undefined>(undefined);
 
   const handleNavigate = (view: ViewState, param?: string) => {
@@ -56,6 +57,10 @@ const App: React.FC = () => {
       <div className="relative z-10 flex flex-col min-h-screen">
           <Header onNavigate={handleNavigate} currentView={currentView} />
           <main className="flex-grow">
+            {currentView === 'portal' && (
+                <PortalHub onNavigate={handleNavigate} />
+            )}
+
             {currentView === 'home' && (
               <>
                 <Hero />
@@ -84,7 +89,7 @@ const App: React.FC = () => {
                <ConsumerPortal />
             )}
           </main>
-          <Footer />
+          {currentView !== 'portal' && <Footer />}
       </div>
     </div>
   );
