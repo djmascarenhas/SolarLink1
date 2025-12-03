@@ -1,9 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Safe check for process.env to avoid crashing in pure browser environments
-const env = (typeof process !== 'undefined' && process.env) ? process.env : {};
+// Helper to safely get env vars
+const getEnv = (key: string) => {
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+        return import.meta.env[key];
+    }
+    if (typeof process !== 'undefined' && process.env) {
+        return process.env[key];
+    }
+    return undefined;
+};
 
-const supabaseUrl = env.SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = env.SUPABASE_ANON_KEY || 'placeholder-key';
+const supabaseUrl = getEnv('VITE_SUPABASE_URL') || 'https://placeholder.supabase.co';
+const supabaseKey = getEnv('VITE_SUPABASE_ANON_KEY') || 'placeholder-key';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
