@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import ConsumerForm, { ConsumerData } from './ConsumerForm';
+import ConsumerSelection from './ConsumerSelection';
 import ConsumerChat from './ConsumerChat';
 import Card from '../common/Card';
 import { SparklesIcon } from '../icons/SparklesIcon';
@@ -12,8 +12,9 @@ interface ConsumerPortalProps {
 }
 
 const ConsumerPortal: React.FC<ConsumerPortalProps> = ({ userSession, setUserSession }) => {
-    const [step, setStep] = useState<'form' | 'chat'>('form');
+    const [step, setStep] = useState<'form' | 'selection' | 'chat'>('form');
     const [userData, setUserData] = useState<ConsumerData | null>(null);
+    const [selectedContext, setSelectedContext] = useState<string>('');
 
     // Auto-login consumer if session exists
     useEffect(() => {
@@ -25,7 +26,8 @@ const ConsumerPortal: React.FC<ConsumerPortalProps> = ({ userSession, setUserSes
                 city: userSession.details?.city || '',
                 uf: userSession.details?.uf || ''
             });
-            setStep('chat');
+            // If returning, maybe skip selection or default to general
+            setStep('selection'); 
         }
     }, [userSession]);
 
@@ -44,6 +46,11 @@ const ConsumerPortal: React.FC<ConsumerPortalProps> = ({ userSession, setUserSes
             }
         });
 
+        setStep('selection');
+    };
+
+    const handleSelection = (context: string) => {
+        setSelectedContext(context);
         setStep('chat');
     };
 
@@ -73,8 +80,19 @@ const ConsumerPortal: React.FC<ConsumerPortalProps> = ({ userSession, setUserSes
                             {step === 'form' && (
                                 <ConsumerForm onSubmit={handleFormSubmit} />
                             )}
+                            
+                            {step === 'selection' && userData && (
+                                <ConsumerSelection 
+                                    userName={userData.name.split(' ')[0]} 
+                                    onSelect={handleSelection} 
+                                />
+                            )}
+
                             {step === 'chat' && userData && (
-                                <ConsumerChat userData={userData} />
+                                <ConsumerChat 
+                                    userData={userData} 
+                                    initialContext={selectedContext}
+                                />
                             )}
                         </div>
                     </Card>
