@@ -1,16 +1,49 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ConsumerForm, { ConsumerData } from './ConsumerForm';
 import ConsumerChat from './ConsumerChat';
 import Card from '../common/Card';
 import { SparklesIcon } from '../icons/SparklesIcon';
+import { UserSession } from '../../App';
 
-const ConsumerPortal: React.FC = () => {
+interface ConsumerPortalProps {
+    userSession: UserSession | null;
+    setUserSession: (session: UserSession) => void;
+}
+
+const ConsumerPortal: React.FC<ConsumerPortalProps> = ({ userSession, setUserSession }) => {
     const [step, setStep] = useState<'form' | 'chat'>('form');
     const [userData, setUserData] = useState<ConsumerData | null>(null);
 
+    // Auto-login consumer if session exists
+    useEffect(() => {
+        if (userSession && userSession.type === 'consumer') {
+            setUserData({
+                id: userSession.id,
+                name: userSession.name,
+                whatsapp: userSession.details?.whatsapp || '',
+                city: userSession.details?.city || '',
+                uf: userSession.details?.uf || ''
+            });
+            setStep('chat');
+        }
+    }, [userSession]);
+
     const handleFormSubmit = (data: ConsumerData) => {
         setUserData(data);
+        
+        // Update global session state
+        setUserSession({
+            id: data.id || 'temp',
+            name: data.name,
+            type: 'consumer',
+            details: {
+                whatsapp: data.whatsapp,
+                city: data.city,
+                uf: data.uf
+            }
+        });
+
         setStep('chat');
     };
 

@@ -13,12 +13,22 @@ import Opportunities from './components/Opportunities';
 import BuyCredits from './components/BuyCredits';
 import ConsumerPortal from './components/consumer/ConsumerPortal';
 import PortalHub from './components/PortalHub';
+import UserStatusBar from './components/UserStatusBar';
+import UserRegistration from './components/company/UserRegistration';
 
-type ViewState = 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer';
+type ViewState = 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer' | 'user_registration';
+
+export interface UserSession {
+    name: string;
+    type: 'consumer' | 'business';
+    id: string;
+    details?: any;
+}
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('portal');
   const [oppFilter, setOppFilter] = useState<string | undefined>(undefined);
+  const [userSession, setUserSession] = useState<UserSession | null>(null);
 
   const handleNavigate = (view: ViewState, param?: string) => {
     setCurrentView(view);
@@ -41,6 +51,11 @@ const App: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+      setUserSession(null);
+      setCurrentView('portal');
+  };
+
   return (
     <div className="relative min-h-screen text-gray-200 font-sans selection:bg-yellow-500/30">
       {/* Global Background Image */}
@@ -56,6 +71,12 @@ const App: React.FC = () => {
 
       <div className="relative z-10 flex flex-col min-h-screen">
           <Header onNavigate={handleNavigate} currentView={currentView} />
+          
+          {/* User Status Bar - Only shows if logged in and not on the portal selection screen */}
+          {userSession && currentView !== 'portal' && (
+              <UserStatusBar user={userSession} onLogout={handleLogout} />
+          )}
+
           <main className="flex-grow">
             {currentView === 'portal' && (
                 <PortalHub onNavigate={handleNavigate} />
@@ -63,7 +84,11 @@ const App: React.FC = () => {
 
             {currentView === 'home' && (
               <>
-                <Hero />
+                <Hero 
+                    userSession={userSession} 
+                    setUserSession={setUserSession} 
+                    onNavigate={handleNavigate}
+                />
                 <WhyChooseUs />
                 <HowItWorks />
                 <Features />
@@ -86,7 +111,17 @@ const App: React.FC = () => {
             )}
 
             {currentView === 'consumer' && (
-               <ConsumerPortal />
+               <ConsumerPortal 
+                    userSession={userSession}
+                    setUserSession={setUserSession}
+               />
+            )}
+
+            {currentView === 'user_registration' && (
+                <UserRegistration 
+                    userSession={userSession}
+                    onBack={() => handleNavigate('home')}
+                />
             )}
           </main>
           {currentView !== 'portal' && <Footer />}

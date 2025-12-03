@@ -10,6 +10,9 @@ import { FactoryIcon } from './icons/FactoryIcon';
 import { CoinsIcon } from './icons/CoinsIcon';
 import { ArrowLeftIcon } from './icons/ArrowLeftIcon';
 import { TargetIcon } from './icons/TargetIcon';
+import { WhatsAppIcon } from './icons/WhatsAppIcon';
+import { TwitterIcon } from './icons/TwitterIcon';
+import { LinkedInIcon } from './icons/LinkedInIcon';
 import OpportunityDetail from './OpportunityDetail';
 
 // Mock Data Expanded with Lat/Lng
@@ -289,14 +292,12 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate, initi
   // Calculate coordinates on the Brazil map image for filtering logic
   const getMapPosition = (lat: number, lng: number) => {
       // Brazil Bounds approximation for the SVG map image
-      // These values are tuned to fit the standard projection of the Brazil Blank Map
       const minLat = -33.8; // South
       const maxLat = 5.3;   // North
       const minLng = -74.0; // West
       const maxLng = -34.8; // East
 
       // Simple linear interpolation (Equirectangular approximation)
-      // Note: CSS Top is 0 at the top (North), so we invert the lat logic
       const top = ((maxLat - lat) / (maxLat - minLat)) * 100;
       const left = ((lng - minLng) / (maxLng - minLng)) * 100;
       
@@ -348,6 +349,20 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate, initi
   const handleMarkerClick = (e: React.MouseEvent, id: number) => {
       e.stopPropagation();
       setActiveMarkerId(prevId => prevId === id ? null : id);
+  }
+  
+  const handleShare = (e: React.MouseEvent, platform: 'whatsapp' | 'twitter' | 'linkedin', opp: typeof opportunitiesData[0]) => {
+      e.stopPropagation();
+      const text = `Confira esta oportunidade solar em ${opp.city}-${opp.uf}: ${opp.type}, ${opp.systemSize}. Veja mais na SolarLink!`;
+      const url = `https://solarlink.com.br/opportunities?id=${opp.id}`;
+      
+      let shareUrl = '';
+      switch(platform) {
+          case 'whatsapp': shareUrl = `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`; break;
+          case 'twitter': shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`; break;
+          case 'linkedin': shareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(url)}&title=${encodeURIComponent('Oportunidade SolarLink')}&summary=${encodeURIComponent(text)}`; break;
+      }
+      window.open(shareUrl, '_blank');
   }
 
   // --- DETAIL VIEW ---
@@ -525,9 +540,27 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate, initi
                     <div 
                         key={opp.id} 
                         onClick={() => { setSelectedOpp(opp); window.scrollTo(0, 0); }}
-                        className="group bg-slate-900/70 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden hover:border-yellow-500/50 hover:scale-[1.02] hover:shadow-2xl hover:shadow-yellow-500/10 transition-all duration-300 flex flex-col cursor-pointer"
+                        className="group relative bg-slate-900/70 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden hover:border-yellow-500/50 hover:scale-[1.02] hover:shadow-2xl hover:shadow-yellow-500/10 transition-all duration-300 flex flex-col cursor-pointer"
                     >
-                        <div className="p-6 flex-grow">
+                         {/* Tooltip Hover Info */}
+                         <div className="absolute inset-x-0 top-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-20">
+                             <div className="bg-slate-800/95 border border-slate-600 rounded-lg p-3 shadow-xl backdrop-blur-md transform -translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                                 <div className="flex justify-between items-center text-xs mb-1">
+                                     <span className="text-gray-400">Conta Atual:</span>
+                                     <span className="text-white font-bold">{opp.billValue}</span>
+                                 </div>
+                                 <div className="flex justify-between items-center text-xs mb-1">
+                                     <span className="text-gray-400">Consumo:</span>
+                                     <span className="text-white font-bold">{opp.avgConsumption}</span>
+                                 </div>
+                                 <div className="flex justify-between items-center text-xs border-t border-slate-700 pt-1 mt-1">
+                                     <span className="text-gray-400">Economia Est:</span>
+                                     <span className="text-green-400 font-bold">{opp.estimatedSavings}</span>
+                                 </div>
+                             </div>
+                         </div>
+
+                        <div className="p-6 flex-grow relative z-10">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex items-center gap-2 bg-slate-800 py-1.5 px-3 rounded-full border border-slate-700">
                                     {getIcon(opp.type)}
@@ -576,14 +609,24 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate, initi
                             </div>
                         </div>
 
-                        <div className="bg-slate-800/50 p-4 border-t border-slate-700 flex justify-between items-center group-hover:bg-slate-800 transition-colors">
-                            <div className="flex items-center gap-1.5 text-yellow-400 font-bold">
-                                <CoinsIcon className="w-4 h-4" />
-                                <span>{opp.credits} Crédito{opp.credits > 1 ? 's' : ''}</span>
+                        {/* Card Footer with Share Buttons */}
+                        <div className="bg-slate-800/50 p-4 border-t border-slate-700 flex flex-col gap-3 group-hover:bg-slate-800 transition-colors relative z-10">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-1.5 text-yellow-400 font-bold">
+                                    <CoinsIcon className="w-4 h-4" />
+                                    <span>{opp.credits} Crédito{opp.credits > 1 ? 's' : ''}</span>
+                                </div>
+                                <span className="text-sm font-semibold text-yellow-400 group-hover:underline">
+                                    Ver detalhes →
+                                </span>
                             </div>
-                            <span className="text-sm font-semibold text-yellow-400 group-hover:underline">
-                                Ver detalhes →
-                            </span>
+                            
+                            <div className="flex justify-end gap-2 pt-2 border-t border-slate-700/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <span className="text-[10px] text-gray-500 self-center mr-auto">Compartilhar:</span>
+                                <button onClick={(e) => handleShare(e, 'whatsapp', opp)} className="p-1.5 bg-green-500/10 hover:bg-green-500/20 rounded text-green-500 transition-colors"><WhatsAppIcon className="w-3.5 h-3.5" /></button>
+                                <button onClick={(e) => handleShare(e, 'twitter', opp)} className="p-1.5 bg-blue-400/10 hover:bg-blue-400/20 rounded text-blue-400 transition-colors"><TwitterIcon className="w-3.5 h-3.5" /></button>
+                                <button onClick={(e) => handleShare(e, 'linkedin', opp)} className="p-1.5 bg-blue-600/10 hover:bg-blue-600/20 rounded text-blue-600 transition-colors"><LinkedInIcon className="w-3.5 h-3.5" /></button>
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -645,92 +688,4 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate, initi
                                 onMouseLeave={() => setHoveredMapItem(null)}
                                 className="relative flex items-center justify-center w-8 h-8 -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform focus:outline-none group"
                             >
-                                <div className={`absolute w-full h-full rounded-full ${isActive ? '' : 'animate-ping'} opacity-75 ${
-                                    opp.type === 'Residencial' ? 'bg-yellow-500' :
-                                    opp.type === 'Comercial' ? 'bg-blue-500' : 'bg-purple-500'
-                                }`}></div>
-                                <div className={`relative w-4 h-4 rounded-full shadow-lg border-2 transition-all ${isActive ? 'border-white scale-125' : 'border-white group-hover:scale-110'} ${
-                                    opp.type === 'Residencial' ? 'bg-yellow-500' :
-                                    opp.type === 'Comercial' ? 'bg-blue-500' : 'bg-purple-500'
-                                }`}></div>
-                            </button>
-
-                            {/* Tooltip Card */}
-                            {showCard && (
-                                <div 
-                                    onClick={(e) => {
-                                        if (isActive) {
-                                            e.stopPropagation();
-                                            setSelectedOpp(opp);
-                                            window.scrollTo(0, 0);
-                                        }
-                                    }}
-                                    className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl p-4 animate-fadeIn ${isActive ? 'z-50 cursor-pointer pointer-events-auto hover:bg-slate-800/90' : 'z-40 pointer-events-none'}`}
-                                >
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="p-1.5 bg-slate-700 rounded-full">
-                                            {getIcon(opp.type, "w-3 h-3")}
-                                        </div>
-                                        <span className="text-xs font-bold text-white uppercase">{opp.type}</span>
-                                        {isActive && <span className="ml-auto text-[10px] text-green-400 font-bold tracking-wider">SELECIONADO</span>}
-                                    </div>
-                                    <p className="text-white font-semibold text-sm mb-1">{opp.city} - {opp.uf}</p>
-                                    <div className="flex justify-between items-center text-xs text-gray-400">
-                                        <span>Conta: {opp.billValue}</span>
-                                        <span className="text-yellow-400 font-bold">{opp.credits} Créditos</span>
-                                    </div>
-                                    {isActive && (
-                                        <div className="mt-3 pt-2 border-t border-slate-700 text-center flex flex-col gap-2">
-                                            <span className="text-xs text-yellow-400 font-bold underline decoration-yellow-400/30">
-                                                Clique para ver detalhes
-                                            </span>
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if(onNavigate) onNavigate('home', '#como-funciona');
-                                                }}
-                                                className="w-full bg-slate-700 hover:bg-slate-600 text-white text-xs py-1.5 px-3 rounded transition-colors mt-1 font-medium"
-                                            >
-                                                Saiba Mais
-                                            </button>
-                                        </div>
-                                    )}
-                                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-3 h-3 bg-slate-800 border-r border-b border-slate-700 transform rotate-45"></div>
-                                </div>
-                            )}
-                        </div>
-                    )
-                })}
-
-                <div className="absolute bottom-6 right-6 bg-slate-900/90 p-4 rounded-lg border border-slate-700 text-xs text-gray-400 pointer-events-none z-10">
-                    <p className="font-bold text-white mb-2">Legenda:</p>
-                    <div className="flex items-center gap-2 mb-1">
-                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                        <span>Residencial</span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-1">
-                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-                        <span>Comercial</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                        <span>Usina / Grande Porte</span>
-                    </div>
-                </div>
-            </div>
-        )}
-        
-        {!isLoading && filteredData.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-500 opacity-70 animate-fadeIn">
-                <TargetIcon className="w-16 h-16 mb-4 text-gray-600" />
-                <p className="text-xl font-medium">Nenhuma oportunidade encontrada com os filtros selecionados.</p>
-                <p className="text-sm mt-2">Tente aumentar o raio de distância ou selecionar outro estado.</p>
-            </div>
-        )}
-
-      </div>
-    </section>
-  );
-};
-
-export default Opportunities;
+                                <div className={`absolute w-full h-full rounded-full ${isActive ? '' : 'animate-
