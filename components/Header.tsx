@@ -1,22 +1,63 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Button from './common/Button';
 import { Logo } from './Logo';
 import { MenuIcon } from './icons/MenuIcon';
 import { XIcon } from './icons/XIcon';
 
 interface HeaderProps {
-    onNavigate: (view: 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer' | 'user_registration', param?: string) => void;
-    currentView: 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer' | 'user_registration';
+    onNavigate?: (view: string, param?: string) => void;
+    currentView?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
+const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Determine current view from location
+  const getCurrentView = () => {
+    const path = location.pathname;
+    if (path === '/') return 'portal';
+    if (path.startsWith('/business')) return 'home';
+    if (path.startsWith('/consumer')) return 'consumer';
+    if (path.startsWith('/opportunities')) return 'opportunities';
+    if (path.startsWith('/buy_credits')) return 'buy_credits';
+    if (path.startsWith('/register')) return 'user_registration';
+    return 'home'; // Default fallback
+  };
+
+  const currentView = getCurrentView();
 
   // Function to handle navigation links
   const handleNavClick = (view: 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer' | 'user_registration', param?: string) => {
     setIsMenuOpen(false);
-    onNavigate(view, param);
+
+    // Internal navigation logic
+    if (view === 'portal') navigate('/');
+    else if (view === 'home') {
+        navigate('/business');
+        if (param) {
+            // If there's a param (hash), we need to handle it after navigation
+            // For now, let's just navigate and let the ScrollToAnchor in App.tsx handle it if hash matches
+            // Actually, we should set the hash
+             setTimeout(() => {
+                 const element = document.getElementById(param.replace('#', ''));
+                 if (element) {
+                     element.scrollIntoView({ behavior: 'smooth' });
+                 }
+            }, 100);
+        }
+    }
+    else if (view === 'opportunities') navigate('/opportunities');
+    else if (view === 'consumer') navigate('/consumer');
+
+    // Keep calling onNavigate if provided (for compatibility or additional logic)
+    if (onNavigate) {
+        onNavigate(view, param);
+    }
+
     if (view !== 'home' || !param) {
         window.scrollTo(0, 0);
     }
