@@ -72,9 +72,11 @@ const App: React.FC = () => {
       <div className="relative z-10 flex flex-col min-h-screen">
           <Header onNavigate={handleNavigate} currentView={currentView} />
           
-          {/* User Status Bar - Only shows if logged in and not on the portal selection screen */}
+          {/* User Status Bar - Rendered explicitly here */}
           {userSession && currentView !== 'portal' && (
-              <UserStatusBar user={userSession} onLogout={handleLogout} />
+              <div className="relative z-50">
+                   <UserStatusBar user={userSession} onLogout={handleLogout} />
+              </div>
           )}
 
           <main className="flex-grow">

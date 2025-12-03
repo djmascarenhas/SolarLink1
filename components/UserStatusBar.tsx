@@ -18,7 +18,7 @@ interface UserStatusBarProps {
 
 const UserStatusBar: React.FC<UserStatusBarProps> = ({ user, onLogout }) => {
     return (
-        <div className="bg-slate-800/80 backdrop-blur-md border-b border-slate-700 py-3 animate-fadeIn relative z-40">
+        <div className="bg-slate-900 border-b border-slate-700 py-3 animate-fadeIn w-full shadow-lg">
             <div className="container mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
                 
                 {/* Lado Esquerdo: Identificação */}
@@ -44,7 +44,7 @@ const UserStatusBar: React.FC<UserStatusBarProps> = ({ user, onLogout }) => {
                 </div>
 
                 {/* Centro: Status do Processo */}
-                <div className="hidden md:flex items-center gap-2 px-4 py-1.5 bg-slate-900/50 rounded-full border border-slate-700/50">
+                <div className="hidden md:flex items-center gap-2 px-4 py-1.5 bg-slate-800 rounded-full border border-slate-700">
                     {user.type === 'business' ? (
                         <>
                             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>

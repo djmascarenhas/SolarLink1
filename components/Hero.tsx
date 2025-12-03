@@ -144,6 +144,8 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
     { label: "Minúscula", valid: formData.password ? /[a-z]/.test(formData.password) : false },
     { label: "Número", valid: formData.password ? /[0-9]/.test(formData.password) : false },
   ];
+  
+  const passwordStrength = passwordRequirements.filter(r => r.valid).length;
 
   const handleAiImprove = async () => {
     setIsAiLoading(true);
@@ -371,7 +373,6 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
     } catch (err) {
         console.error("Verification error", err);
         // On error (e.g., connection/RLS), just proceed to review with what we have
-        // Or handle specific errors if necessary
         setStep('REVIEW');
     } finally {
         setIsProcessing(false);
@@ -385,9 +386,11 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
         let companyId = formData.id;
         let userId: string | undefined;
 
-        // 1. Authenticate/Register User First (To satisfy Foreign Keys)
-        // Check if we are editing or creating a new user logic is simplified here
+        console.log("Iniciando cadastro...");
+
+        // 1. Authenticate/Register User First
         if (!isEditing) {
+            // Tentativa de cadastro no Supabase Auth
             const { data: authData, error: authError } = await supabase.auth.signUp({
                 email: formData.email,
                 password: formData.password,
@@ -399,22 +402,20 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
             });
 
             if (authError) {
-                // Handle case where user might already exist but company does not
+                // Se o usuário já existe, não é um erro fatal para a empresa, 
+                // mas precisamos avisar se ele não estiver logado.
                 if (authError.message.includes("already registered")) {
-                   // In a real app, we would prompt login. 
-                   // Here we might just alert, or if we want to proceed for demo:
-                   alert("Este e-mail já está cadastrado. Por favor, faça login ou use outro e-mail.");
-                   setIsProcessing(false);
-                   return;
+                   // Em produção, pediríamos login. Aqui, simulamos que 'passou' ou avisamos.
+                   // Vamos tentar logar? (Não é seguro com a senha aqui se ele já tem outra).
+                   // Vamos apenas alertar e tentar prosseguir se o Supabase permitir insert (RLS vai bloquear se não tiver auth)
+                   console.warn("Usuário já existe no Auth");
+                } else {
+                    throw authError;
                 }
-                throw authError;
             }
             
             userId = authData.user?.id;
-        } else {
-            // Editing - we assume current session or we skip user creation if just updating company
-            // For this demo, if editing, we might not have the userId readily available unless logged in
-            // We'll proceed with company update
+            console.log("Usuário Auth criado/recuperado:", userId);
         }
 
         // 2. Create or Update Company
@@ -439,17 +440,23 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                 .eq('id', companyId);
             if (error) throw error;
         } else {
+            console.log("Inserindo empresa...");
             const { data, error } = await supabase
                 .from('companies')
                 .insert([ { ...companyPayload, credits: 0 } ])
                 .select()
                 .single();
-            if (error) throw error;
+            
+            if (error) {
+                console.error("Erro ao inserir empresa:", error);
+                throw new Error("Erro ao criar registro da empresa. Verifique se você está logado ou se o sistema permite novos cadastros.");
+            }
             companyId = data.id;
         }
 
-        // 3. Create User Profile (If new user)
+        // 3. Create User Profile (If new user and userId exists)
         if (userId && companyId) {
+            console.log("Inserindo perfil...");
             const { error: profileError } = await supabase
                 .from('profiles')
                 .insert([{
@@ -462,8 +469,8 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                 }]);
             
             if (profileError) {
-                console.error("Profile creation error", profileError);
-                // Continue if profile fails (maybe user exists), but warn console
+                // Se perfil já existe (ex: usuario voltou e criou outra empresa), update?
+                console.warn("Erro/Aviso ao criar perfil:", profileError);
             }
         }
 
@@ -477,10 +484,13 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
         }
 
         // 5. Update Local Session State
+        console.log("Cadastro concluído com sucesso.");
+        
+        // IMPORTANTE: Atualiza a sessão global para que o App.tsx renderize a UserStatusBar
         setUserSession({
             name: formData.name,
             type: 'business',
-            id: userId || 'temp-id',
+            id: userId || 'session-active',
             details: {
                 companyName: formData.empresa,
                 credits: 0,
@@ -489,18 +499,18 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
         });
 
         setStep('SUCCESS');
+        
+        // Aguarda 3 segundos e reseta para o form (ou dashboard visualizado devido ao userSession)
         setTimeout(() => {
             setStep('FORM'); 
-            setFormData({
-                name: '', empresa: '', document: '', cep: '', address: '', number: '', complement: '',
-                cidade: '', uf: '', email: '', whatsapp: '', password: '', confirmPassword: '', message: '',
-            });
             setIsEditing(false);
-        }, 3000);
+            // Redireciona para home para garantir refresh dos componentes
+            onNavigate('home'); 
+        }, 2000);
 
     } catch (error: any) {
-        console.error("Erro no cadastro:", error);
-        alert(`Ocorreu um erro ao salvar os dados: ${error.message || error.error_description || "Erro desconhecido"}`);
+        console.error("Erro CRÍTICO no cadastro:", error);
+        alert(`Ocorreu um erro ao salvar os dados: ${error.message || "Erro desconhecido"}. Verifique o console.`);
     } finally {
         setIsProcessing(false);
     }
@@ -602,9 +612,10 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                                     <CheckIcon className="w-10 h-10 text-white" />
                                 </div>
                                 <h3 className="text-2xl font-bold text-white mb-2">Cadastro Realizado!</h3>
-                                <p className="text-gray-300 text-center max-w-sm">
-                                    Sua empresa foi {isEditing ? 'atualizada' : 'cadastrada'} com sucesso. Entraremos em contato para validar suas credenciais.
+                                <p className="text-gray-300 text-center max-w-sm mb-4">
+                                    Bem-vindo à SolarLink. Seu painel está sendo carregado.
                                 </p>
+                                <div className="w-8 h-8 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
                             </div>
                         )}
 
@@ -660,7 +671,10 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                                         disabled={isProcessing}
                                     >
                                         {isProcessing ? (
-                                            <span className="animate-pulse">Salvando...</span>
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
+                                                Processando...
+                                            </>
                                         ) : (
                                             <>
                                                 <CheckIcon className="w-4 h-4" />
@@ -761,14 +775,25 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                                         <div className="group/input">
                                             <label className="block text-xs font-medium text-gray-400 mb-1">Senha</label>
                                             <input type="password" name="password" required={!isEditing} value={formData.password} onChange={handleChange} className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-white" placeholder={isEditing ? "(Sem alteração)" : "••••••••"} />
-                                             {/* Password Requirements UI (Keeping it simple for XML) */}
+                                             {/* Password Requirements Visual */}
                                             {(formData.password || !isEditing) && (
-                                                <div className="mt-2 grid grid-cols-2 gap-1">
-                                                    {passwordRequirements.map((req, index) => (
-                                                        <div key={index} className={`text-[10px] flex items-center gap-1.5 ${req.valid ? 'text-green-400 font-medium' : 'text-gray-500'}`}>
-                                                            <div className={`w-2 h-2 rounded-full ${req.valid ? 'bg-green-400' : 'bg-slate-600'}`}></div>{req.label}
-                                                        </div>
-                                                    ))}
+                                                <div className="mt-2">
+                                                    <div className="flex gap-1 mb-2 h-1 w-full bg-slate-700 rounded-full overflow-hidden">
+                                                        <div className={`h-full transition-all duration-300 ${passwordStrength >= 1 ? 'w-1/4 bg-red-500' : 'w-0'}`}></div>
+                                                        <div className={`h-full transition-all duration-300 ${passwordStrength >= 2 ? 'w-1/4 bg-orange-500' : 'w-0'}`}></div>
+                                                        <div className={`h-full transition-all duration-300 ${passwordStrength >= 3 ? 'w-1/4 bg-yellow-400' : 'w-0'}`}></div>
+                                                        <div className={`h-full transition-all duration-300 ${passwordStrength >= 4 ? 'w-1/4 bg-green-500' : 'w-0'}`}></div>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-1">
+                                                        {passwordRequirements.map((req, index) => (
+                                                            <div key={index} className={`text-[10px] flex items-center gap-1.5 ${req.valid ? 'text-green-400 font-medium' : 'text-gray-500'}`}>
+                                                                <div className={`w-3 h-3 rounded-full flex items-center justify-center ${req.valid ? 'bg-green-500/20 text-green-400' : 'bg-slate-700 text-transparent'}`}>
+                                                                    <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                                                                </div>
+                                                                {req.label}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
