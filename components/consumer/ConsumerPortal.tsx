@@ -26,7 +26,7 @@ const ConsumerPortal: React.FC<ConsumerPortalProps> = ({ userSession, setUserSes
                 city: userSession.details?.city || '',
                 uf: userSession.details?.uf || ''
             });
-            // If returning, maybe skip selection or default to general
+            // If returning, go to selection to reaffirm intent
             setStep('selection'); 
         }
     }, [userSession]);

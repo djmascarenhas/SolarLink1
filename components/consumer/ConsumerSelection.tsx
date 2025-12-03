@@ -1,5 +1,4 @@
 import React from 'react';
-import Button from '../common/Button';
 import { HomeIcon } from '../icons/HomeIcon';
 import { BuildingIcon } from '../icons/BuildingIcon';
 import { FactoryIcon } from '../icons/FactoryIcon';
@@ -41,7 +40,7 @@ const ConsumerSelection: React.FC<ConsumerSelectionProps> = ({ userName, onSelec
                 </button>
 
                 <button 
-                    onClick={() => onSelect('Rural')}
+                    onClick={() => onSelect('Rural/Usina')}
                     className="group bg-slate-800 hover:bg-slate-700 border border-slate-600 hover:border-indigo-500 rounded-xl p-6 text-left transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/20"
                 >
                     <div className="w-12 h-12 bg-slate-700 group-hover:bg-indigo-500 rounded-lg flex items-center justify-center mb-4 transition-colors">
@@ -52,7 +51,7 @@ const ConsumerSelection: React.FC<ConsumerSelectionProps> = ({ userName, onSelec
                 </button>
 
                  <button 
-                    onClick={() => onSelect('Consultoria')}
+                    onClick={() => onSelect('Consultoria Geral')}
                     className="group bg-slate-800 hover:bg-slate-700 border border-slate-600 hover:border-indigo-500 rounded-xl p-6 text-left transition-all duration-300 hover:shadow-xl hover:shadow-indigo-500/20"
                 >
                     <div className="w-12 h-12 bg-slate-700 group-hover:bg-indigo-500 rounded-lg flex items-center justify-center mb-4 transition-colors">
