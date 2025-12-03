@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from './common/Card';
 import Button from './common/Button';
 import { MapPinIcon } from './icons/MapPinIcon';
@@ -193,9 +193,10 @@ const brazilianStates = [
 interface OpportunitiesProps {
     onBack: () => void;
     onNavigate?: (view: 'home', hash?: string) => void;
+    initialFilter?: string;
 }
 
-const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => {
+const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate, initialFilter }) => {
   const [filterType, setFilterType] = useState('Todos');
   const [filterState, setFilterState] = useState('Todos');
   const [maxDistance, setMaxDistance] = useState<number>(2000); // Slider value in km
@@ -211,8 +212,15 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
   const [userLocation, setUserLocation] = useState({ lat: -23.5505, lng: -46.6333, city: 'São Paulo', isReal: false });
   const [locationLoading, setLocationLoading] = useState(false);
 
+  // Apply initial filter if provided
+  useEffect(() => {
+    if (initialFilter) {
+        setFilterType(initialFilter);
+    }
+  }, [initialFilter]);
+
   // Simulate loading when filters change
-  React.useEffect(() => {
+  useEffect(() => {
     setIsLoading(true);
     const timer = setTimeout(() => {
         setIsLoading(false);
@@ -588,7 +596,6 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                          <div className="relative flex items-center justify-center w-12 h-12 -translate-x-1/2 -translate-y-1/2">
                              <div className="absolute w-full h-full border-2 border-indigo-500 rounded-full animate-ping opacity-50"></div>
                              <div className="relative w-4 h-4 bg-indigo-500 rounded-full border-2 border-white shadow-lg"></div>
-                             {/* Optional: Show Radius visually? (Tricky on non-projected maps, but we can simulate a larger pulse) */}
                          </div>
                     </div>
                 )}

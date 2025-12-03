@@ -11,19 +11,28 @@ import CtaSection from './components/CtaSection';
 import Footer from './components/Footer';
 import Opportunities from './components/Opportunities';
 import BuyCredits from './components/BuyCredits';
+import ConsumerPortal from './components/consumer/ConsumerPortal';
 
-type ViewState = 'home' | 'opportunities' | 'buy_credits';
+type ViewState = 'home' | 'opportunities' | 'buy_credits' | 'consumer';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
+  const [oppFilter, setOppFilter] = useState<string | undefined>(undefined);
 
-  const handleNavigate = (view: ViewState, hash?: string) => {
+  const handleNavigate = (view: ViewState, param?: string) => {
     setCurrentView(view);
     
-    if (hash && view === 'home') {
+    // Check if param is a filter for opportunities
+    if (view === 'opportunities' && param) {
+        setOppFilter(param);
+    } else {
+        setOppFilter(undefined);
+    }
+
+    if (param && view === 'home' && param.startsWith('#')) {
         // Allow time for the home components to mount before scrolling
         setTimeout(() => {
-            const element = document.getElementById(hash.replace('#', ''));
+            const element = document.getElementById(param.replace('#', ''));
             if (element) {
                 element.scrollIntoView({ behavior: 'smooth' });
             }
@@ -62,12 +71,17 @@ const App: React.FC = () => {
             {currentView === 'opportunities' && (
               <Opportunities 
                 onBack={() => handleNavigate('home')} 
-                onNavigate={handleNavigate} 
+                onNavigate={handleNavigate}
+                initialFilter={oppFilter}
               />
             )}
 
             {currentView === 'buy_credits' && (
               <BuyCredits onBack={() => handleNavigate('home')} />
+            )}
+
+            {currentView === 'consumer' && (
+               <ConsumerPortal />
             )}
           </main>
           <Footer />
