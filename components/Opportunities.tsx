@@ -110,6 +110,54 @@ const opportunitiesData = [
     systemSize: '20 kWp',
     estimatedSavings: 'R$ 25.000 / ano'
   },
+  {
+    id: 7,
+    type: 'Usina',
+    city: 'Petrolina',
+    uf: 'PE',
+    lat: -9.39416,
+    lng: -40.5096,
+    billValue: 'R$ 8.500,00',
+    avgConsumption: '10.000 kWh',
+    roofType: 'Solo',
+    date: '5 horas atrás',
+    credits: 5,
+    description: 'Projeto de irrigação. Alta irradiação solar. Cliente busca financiamento.',
+    systemSize: '45 kWp',
+    estimatedSavings: 'R$ 100.000 / ano'
+  },
+  {
+    id: 8,
+    type: 'Residencial',
+    city: 'Porto Alegre',
+    uf: 'RS',
+    lat: -30.0346,
+    lng: -51.2177,
+    billValue: 'R$ 900,00',
+    avgConsumption: '950 kWh',
+    roofType: 'Telha de Concreto',
+    date: '1 dia atrás',
+    credits: 1,
+    description: 'Casa antiga, telhado necessita reforço. Cliente ciente.',
+    systemSize: '8.0 kWp',
+    estimatedSavings: 'R$ 10.500 / ano'
+  },
+  {
+    id: 9,
+    type: 'Comercial',
+    city: 'Manaus',
+    uf: 'AM',
+    lat: -3.1190,
+    lng: -60.0217,
+    billValue: 'R$ 5.400,00',
+    avgConsumption: '6.000 kWh',
+    roofType: 'Metálico',
+    date: 'Hoje',
+    credits: 3,
+    description: 'Galpão logístico. Área de telhado muito grande disponível.',
+    systemSize: '60 kWp',
+    estimatedSavings: 'R$ 70.000 / ano'
+  }
 ];
 
 const brazilianStates = [
@@ -158,9 +206,10 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
   const [activeMarkerId, setActiveMarkerId] = useState<number | null>(null);
   const [userBalance, setUserBalance] = useState(50); // Mock user balance
   const [isLoading, setIsLoading] = useState(false);
-
-  // Simulated User Location (São Paulo Capital)
-  const userLocation = { lat: -23.5505, lng: -46.6333, city: 'São Paulo' };
+  
+  // User Location State
+  const [userLocation, setUserLocation] = useState({ lat: -23.5505, lng: -46.6333, city: 'São Paulo', isReal: false });
+  const [locationLoading, setLocationLoading] = useState(false);
 
   // Simulate loading when filters change
   React.useEffect(() => {
@@ -169,7 +218,33 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
         setIsLoading(false);
     }, 600);
     return () => clearTimeout(timer);
-  }, [filterType, filterState, maxDistance, sortOption]);
+  }, [filterType, filterState, maxDistance, sortOption, userLocation]);
+
+  // Geolocation Handler
+  const getUserLocation = () => {
+    if (navigator.geolocation) {
+      setLocationLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            city: 'Minha Localização',
+            isReal: true
+          });
+          setLocationLoading(false);
+          setSortOption('distance'); // Auto-sort by distance
+        },
+        (error) => {
+          console.error("Error getting location", error);
+          setLocationLoading(false);
+          alert("Não foi possível obter sua localização. Verifique se você permitiu o acesso no navegador.");
+        }
+      );
+    } else {
+      alert("Geolocalização não é suportada pelo seu navegador.");
+    }
+  };
 
   // Haversine formula to calculate distance in km
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -182,6 +257,23 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
       Math.sin(dLon/2) * Math.sin(dLon/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c; // Distance in km
+  };
+
+  // Calculate coordinates on the Brazil map image for filtering logic
+  const getMapPosition = (lat: number, lng: number) => {
+      // Brazil Bounds approximation for the SVG map image
+      // These values are tuned to fit the standard projection of the Brazil Blank Map
+      const minLat = -33.8; // South
+      const maxLat = 5.3;   // North
+      const minLng = -74.0; // West
+      const maxLng = -34.8; // East
+
+      // Simple linear interpolation (Equirectangular approximation)
+      // Note: CSS Top is 0 at the top (North), so we invert the lat logic
+      const top = ((maxLat - lat) / (maxLat - minLat)) * 100;
+      const left = ((lng - minLng) / (maxLng - minLng)) * 100;
+      
+      return { top: `${top}%`, left: `${left}%` };
   };
 
   // Process data: Map -> Filter -> Sort
@@ -210,26 +302,6 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
       case 'Usina': return <FactoryIcon className={`${className} text-purple-400`} />;
       default: return <HomeIcon className={`${className} text-gray-400`} />;
     }
-  };
-
-  // Helper to approximate coordinates on a Brazil map background
-  const getStateCoordinates = (uf: string) => {
-    const coords: Record<string, { top: string; left: string }> = {
-        'SP': { top: '72%', left: '60%' },
-        'MG': { top: '62%', left: '68%' },
-        'PR': { top: '78%', left: '55%' },
-        'MT': { top: '50%', left: '40%' },
-        'RJ': { top: '74%', left: '72%' },
-        'RS': { top: '88%', left: '52%' },
-        'BA': { top: '45%', left: '75%' },
-        'GO': { top: '58%', left: '55%' },
-        'AM': { top: '25%', left: '30%' },
-        'PA': { top: '30%', left: '55%' },
-        'SC': { top: '82%', left: '56%' },
-        'CE': { top: '28%', left: '85%' },
-        'PE': { top: '35%', left: '90%' },
-    };
-    return coords[uf] || { top: '50%', left: '50%' }; // Default center if not mapped
   };
 
   const handleBuyCredits = () => {
@@ -360,18 +432,37 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                     <TargetIcon className="w-4 h-4 text-indigo-400" />
                     <span>Raio de Distância de <strong>{userLocation.city}</strong>:</span>
                 </div>
+
+                {/* Geolocation Button */}
+                <button 
+                    onClick={getUserLocation}
+                    disabled={locationLoading}
+                    className={`text-xs border px-3 py-1 rounded-md transition-colors flex items-center gap-1.5 disabled:opacity-50 ${
+                        userLocation.isReal 
+                        ? 'bg-green-500/10 border-green-500 text-green-400'
+                        : 'bg-slate-800 hover:bg-slate-700 border-slate-600 text-yellow-500'
+                    }`}
+                >
+                    {locationLoading ? (
+                        <div className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                        <MapPinIcon className="w-3 h-3" />
+                    )}
+                    {locationLoading ? 'Buscando...' : userLocation.isReal ? 'Localização Ativa' : 'Usar minha localização'}
+                </button>
+
                 <div className="flex items-center gap-3 w-full max-w-md">
                      <span className="text-xs font-mono text-gray-500">0km</span>
                      <input 
                         type="range" 
-                        min="0" 
+                        min="50" 
                         max="2000" 
                         step="50"
                         value={maxDistance} 
                         onChange={(e) => setMaxDistance(parseInt(e.target.value))}
                         className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-yellow-500"
                      />
-                     <span className="text-xs font-mono text-white font-bold min-w-[60px]">{maxDistance === 2000 ? '2000+' : maxDistance}km</span>
+                     <span className="text-xs font-mono text-white font-bold min-w-[60px]">{maxDistance >= 2000 ? 'Brasil' : `${maxDistance}km`}</span>
                 </div>
                 <span className="text-xs text-gray-500 ml-auto hidden md:block">Filtrando {filteredData.length} resultados</span>
             </div>
@@ -478,7 +569,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                 )}
                 
                 <div 
-                    className="absolute inset-0 opacity-40 bg-no-repeat bg-center bg-contain"
+                    className="absolute inset-0 bg-no-repeat bg-center bg-contain opacity-50"
                     style={{ 
                         backgroundImage: `url('https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Brazil_Blank_Map.svg/2000px-Brazil_Blank_Map.svg.png')`,
                         filter: 'invert(1) opacity(0.5)'
@@ -488,8 +579,22 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                 {/* Map Overlay Gradient */}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent pointer-events-none"></div>
 
+                {/* Show User Location on Map if Active */}
+                {userLocation.isReal && (
+                    <div 
+                        className="absolute z-10"
+                        style={getMapPosition(userLocation.lat, userLocation.lng)}
+                    >
+                         <div className="relative flex items-center justify-center w-12 h-12 -translate-x-1/2 -translate-y-1/2">
+                             <div className="absolute w-full h-full border-2 border-indigo-500 rounded-full animate-ping opacity-50"></div>
+                             <div className="relative w-4 h-4 bg-indigo-500 rounded-full border-2 border-white shadow-lg"></div>
+                             {/* Optional: Show Radius visually? (Tricky on non-projected maps, but we can simulate a larger pulse) */}
+                         </div>
+                    </div>
+                )}
+
                 {filteredData.map(opp => {
-                    const coords = getStateCoordinates(opp.uf);
+                    const coords = getMapPosition(opp.lat, opp.lng);
                     const isActive = activeMarkerId === opp.id;
                     const isHovered = hoveredMapItem === opp.id;
                     const showCard = isActive || isHovered;
@@ -497,7 +602,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                     return (
                         <div 
                             key={opp.id}
-                            className="absolute"
+                            className="absolute transition-all duration-500"
                             style={{ top: coords.top, left: coords.left }}
                         >
                             <button
@@ -563,7 +668,7 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
                     )
                 })}
 
-                <div className="absolute bottom-6 right-6 bg-slate-900/90 p-4 rounded-lg border border-slate-700 text-xs text-gray-400 pointer-events-none">
+                <div className="absolute bottom-6 right-6 bg-slate-900/90 p-4 rounded-lg border border-slate-700 text-xs text-gray-400 pointer-events-none z-10">
                     <p className="font-bold text-white mb-2">Legenda:</p>
                     <div className="flex items-center gap-2 mb-1">
                         <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
@@ -595,4 +700,3 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
 };
 
 export default Opportunities;
-    
