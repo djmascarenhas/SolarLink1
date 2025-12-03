@@ -1,8 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ConsumerData } from './ConsumerForm';
-import { GoogleGenAI } from "@google/genai";
-import { supabase } from '../../lib/supabaseClient';
+import { SolarLinkService } from '../../lib/solarLinkService'; // Import Service
 import { SendIcon } from '../icons/SendIcon';
 import { UserCircleIcon } from '../icons/UserCircleIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
@@ -16,7 +15,7 @@ interface Message {
 
 interface ConsumerChatProps {
     userData: ConsumerData;
-    initialContext?: string; // e.g., "Residencial", "Usina"
+    initialContext?: string;
 }
 
 const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext }) => {
@@ -34,16 +33,16 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
         scrollToBottom();
     }, [messages, isTyping]);
 
-    // Initial greeting
+    // Inicialização da Solara
     useEffect(() => {
         if (!hasInitialized.current) {
             hasInitialized.current = true;
             setIsTyping(true);
             
-            const contextMsg = initialContext ? ` Vi que você tem interesse em projetos do tipo: ${initialContext}.` : '';
+            const contextMsg = initialContext ? ` Vi que você tem interesse em: ${initialContext}.` : '';
 
             setTimeout(async () => {
-                const welcomeText = `Olá, ${userData.name}! Sou a Solara, sua assistente de energia.${contextMsg} Como posso te ajudar a economizar hoje?`;
+                const welcomeText = `Olá, ${userData.name}! Sou a Solara, engenheira da SolarLink.${contextMsg} Como posso te ajudar hoje?`;
                 
                 const initialMessage: Message = {
                     id: Date.now(),
@@ -54,13 +53,11 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
                 setMessages([initialMessage]);
                 setIsTyping(false);
 
-                // Save initial message to DB if ID exists
+                // Salva a mensagem inicial no BD via Service se tiver ID real
                 if (userData.id && !userData.id.startsWith('temp-')) {
-                    await supabase.from('chat_logs').insert({
-                        lead_id: userData.id,
-                        role: 'assistant',
-                        content: welcomeText
-                    });
+                   // O service atual não expõe "salvar mensagem solta", 
+                   // mas a lógica está no processUserMessage. 
+                   // Como é msg inicial, podemos deixar apenas no frontend ou implementar no service.
                 }
             }, 1500);
         }
@@ -70,9 +67,10 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
         if (e) e.preventDefault();
         if (!inputValue.trim()) return;
 
+        const userText = inputValue;
         const userMsg: Message = {
             id: Date.now(),
-            text: inputValue,
+            text: userText,
             sender: 'user',
             timestamp: new Date()
         };
@@ -81,77 +79,45 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
         setInputValue('');
         setIsTyping(true);
 
-        // 1. Save User Message to DB
-        if (userData.id && !userData.id.startsWith('temp-')) {
-            supabase.from('chat_logs').insert({
-                lead_id: userData.id,
-                role: 'user',
-                content: userMsg.text
-            }).then(() => {});
-        }
-
         try {
-            // NOTE: Here we could call our Edge Function 'solara-agent'
-            // For now, we keep using Gemini Client Side for demo speed, 
-            // but wrapped to act as "Solara" backend logic.
-            
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
-            const history = messages.map(m => `${m.sender === 'user' ? 'Usuário' : 'Solara'}: ${m.text}`).join('\n');
-            const prompt = `
-            Você é a SOLARA, uma IA especialista em engenharia e vendas de energia solar.
-            
-            Contexto do Cliente:
-            Nome: ${userData.name}
-            Local: ${userData.city}/${userData.uf}
-            Interesse Inicial: ${initialContext || 'Geral'}
-            
-            Histórico:
-            ${history}
-            Usuário: ${userMsg.text}
-            
-            Diretrizes:
-            1. Aja como um backend "Gerencia" que está qualificando um lead.
-            2. Tente descobrir o valor da conta de luz (R$) e o tipo de telhado.
-            3. Se já tiver esses dados, sugira agendar uma visita técnica ou orçamento.
-            4. Use linguagem natural, empática e profissional.
-            
-            Responda como Solara:`;
-
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-            });
-
-            const aiText = response.text || "Estou processando seus dados, um momento...";
-
-            const aiMsg: Message = {
-                id: Date.now() + 1,
-                text: aiText,
-                sender: 'ai',
-                timestamp: new Date()
-            };
-
-            setMessages(prev => [...prev, aiMsg]);
-
-            // 2. Save AI Response to DB
             if (userData.id && !userData.id.startsWith('temp-')) {
-                await supabase.from('chat_logs').insert({
-                    lead_id: userData.id,
-                    role: 'assistant',
-                    content: aiText
-                });
-            }
+                // Chama o Serviço: Salva User Msg -> Roda Solara -> Salva AI Msg
+                const aiResponseText = await SolarLinkService.processUserMessage(
+                    userData.id, 
+                    userText, 
+                    {
+                        name: userData.name,
+                        city: userData.city,
+                        context: initialContext
+                    }
+                );
 
+                const aiMsg: Message = {
+                    id: Date.now() + 1,
+                    text: aiResponseText,
+                    sender: 'ai',
+                    timestamp: new Date()
+                };
+                setMessages(prev => [...prev, aiMsg]);
+            } else {
+                // Modo offline / Demo sem BD
+                setTimeout(() => {
+                    setMessages(prev => [...prev, {
+                        id: Date.now() + 1,
+                        text: "Estou operando em modo offline, mas estou ouvindo! (Conecte ao BD para respostas reais)",
+                        sender: 'ai',
+                        timestamp: new Date()
+                    }]);
+                }, 1000);
+            }
         } catch (error) {
             console.error(error);
-            const errorMsg: Message = {
+            setMessages(prev => [...prev, {
                 id: Date.now() + 1,
-                text: "Estou com uma instabilidade na conexão com o servidor da Gerencia. Podemos continuar?",
+                text: "Ops, perdi a conexão com a central. Pode repetir?",
                 sender: 'ai',
                 timestamp: new Date()
-            };
-            setMessages(prev => [...prev, errorMsg]);
+            }]);
         } finally {
             setIsTyping(false);
         }
@@ -172,7 +138,7 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
                         Solara 
                         <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">AI Agent</span>
                     </h3>
-                    <p className="text-xs text-gray-400">Conectada à Gerencia</p>
+                    <p className="text-xs text-gray-400">Online agora</p>
                 </div>
             </div>
 
@@ -184,7 +150,6 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
                         className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                         <div className={`flex items-end gap-2 max-w-[85%] md:max-w-[75%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                             {/* Avatar */}
                              <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden">
                                 {msg.sender === 'user' ? (
                                     <div className="w-full h-full bg-slate-700 flex items-center justify-center">

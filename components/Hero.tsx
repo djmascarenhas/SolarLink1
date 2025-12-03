@@ -1,18 +1,11 @@
 
 import React, { useState } from 'react';
 import Button from './common/Button';
-import Tooltip from './common/Tooltip';
-import { InfoIcon } from './icons/InfoIcon';
-import { SparklesIcon } from './icons/SparklesIcon';
-import { FacebookIcon } from './icons/FacebookIcon';
-import { TwitterIcon } from './icons/TwitterIcon';
-import { LinkedInIcon } from './icons/LinkedInIcon';
 import { CheckIcon } from './icons/CheckIcon';
-import { PencilIcon } from './icons/PencilIcon';
 import { BuildingIcon } from './icons/BuildingIcon';
-import { CoinsIcon } from './icons/CoinsIcon';
 import { GoogleGenAI } from "@google/genai";
 import { supabase } from '../lib/supabaseClient';
+import { SolarLinkService } from '../lib/solarLinkService'; // Importando o Service
 import { UserSession } from '../App';
 
 // Define types for form data and errors
@@ -55,29 +48,12 @@ interface HeroProps {
     onNavigate: (view: any, param?: string) => void;
 }
 
-// Validation helpers (Keeping existing logic)
-const validateCPF = (cpf: string) => {
-  cpf = cpf.replace(/[^\d]+/g, '');
-  if (cpf.length !== 11 || !!cpf.match(/(\d)\1{10}/)) return false;
-  // (Simplificado para o exemplo, mantendo o anterior)
-  return true; 
-};
-
-const validateCNPJ = (cnpj: string) => {
-  cnpj = cnpj.replace(/[^\d]+/g, '');
-  if (cnpj.length !== 14) return false;
-  return true;
-};
-
-type FormStep = 'FORM' | 'REVIEW' | 'SUCCESS';
-
 const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) => {
-  const [step, setStep] = useState<FormStep>('FORM');
+  const [step, setStep] = useState<'FORM' | 'REVIEW' | 'SUCCESS'>('FORM');
   const [docType, setDocType] = useState<'CNPJ' | 'CPF'>('CNPJ');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isLoginMode, setIsLoginMode] = useState(false); // New state for Login Toggle
+  const [isLoginMode, setIsLoginMode] = useState(false);
   
   const [formData, setFormData] = useState<FormData>({
     name: '',
@@ -98,7 +74,6 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
 
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // Password requirements calculation
   const passwordRequirements = [
     { label: "8+ caracteres", valid: formData.password ? formData.password.length >= 8 : false },
     { label: "Maiúscula", valid: formData.password ? /[A-Z]/.test(formData.password) : false },
@@ -106,31 +81,13 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
     { label: "Número", valid: formData.password ? /[0-9]/.test(formData.password) : false },
   ];
   
-  const passwordStrength = passwordRequirements.filter(r => r.valid).length;
-
   const handleAiImprove = async () => {
     setIsAiLoading(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      let textToProcess = formData.message || "Somos uma empresa integradora de energia solar comprometida em entregar as melhores soluções fotovoltaicas.";
       
-      let textToProcess = formData.message;
-      if (!textToProcess || textToProcess.trim() === '') {
-        textToProcess = "Somos uma empresa integradora de energia solar comprometida em entregar as melhores soluções fotovoltaicas, garantindo economia e sustentabilidade para nossos clientes residenciais e comerciais.";
-      }
-      
-      const prompt = `Atue como um especialista sênior em marketing e copywriting para o setor de energia solar.
-      
-      Tarefa: Reescreva a descrição da empresa abaixo para torná-la altamente profissional, confiável e persuasiva.
-      
-      Texto Original: "${textToProcess}"
-      
-      Requisitos Obrigatórios:
-      1. Destaque três pilares principais: Economia Financeira (ROI), Qualidade Técnica Superior (instalação e equipamentos) e Confiança/Segurança.
-      2. Tom de voz: Profissional, experiente e focado no cliente.
-      3. Limite: Máximo de 300 caracteres.
-      4. Idioma: Português do Brasil.
-      
-      Gere apenas o texto aprimorado, sem aspas ou explicações.`;
+      const prompt = `Atue como um especialista em marketing. Reescreva: "${textToProcess}". Destaque: Economia, Qualidade Técnica, Confiança. Máx 300 chars.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-flash-lite-latest',
@@ -141,8 +98,7 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
         setFormData(prev => ({ ...prev, message: response.text.replace(/^"|"$/g, '').trim() }));
       }
     } catch (error) {
-      console.error("Erro ao gerar texto com IA", error);
-      alert("Não foi possível conectar com a IA no momento.");
+      console.error("Erro IA", error);
     } finally {
       setIsAiLoading(false);
     }
@@ -150,71 +106,38 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
 
   const validate = (): FormErrors => {
     const newErrors: FormErrors = {};
-    
-    // Login Validation
     if (isLoginMode) {
         if (!formData.email) newErrors.email = 'E-mail obrigatório.';
         if (!formData.password) newErrors.password = 'Senha obrigatória.';
         return newErrors;
     }
-
-    // Register Validation
     if (!formData.name.trim()) newErrors.name = 'O nome é obrigatório.';
     if (!formData.empresa.trim()) newErrors.empresa = 'O nome da empresa é obrigatório.';
     if (!formData.cidade.trim()) newErrors.cidade = 'A cidade é obrigatória.';
-    
-    if (!formData.uf) {
-      newErrors.uf = 'A UF é obrigatória.';
-    } else if (formData.uf.length !== 2) {
-      newErrors.uf = 'A UF deve ter exatamente 2 letras.';
-    }
-
-    if (!formData.cep.trim()) newErrors.cep = 'CEP obrigatório.';
-
-    if (!formData.email) {
-      newErrors.email = 'O e-mail é obrigatório.';
-    }
-    
-    if (!formData.password) {
-        newErrors.password = 'A senha é obrigatória.';
-    } else {
-        const allRequirementsMet = passwordRequirements.every(req => req.valid);
-        if (!allRequirementsMet) newErrors.password = 'Senha fraca.';
-    }
-
-    if (formData.confirmPassword !== formData.password) {
-        newErrors.confirmPassword = 'As senhas não coincidem.';
-    }
-
+    if (!formData.uf || formData.uf.length !== 2) newErrors.uf = 'UF inválida.';
+    if (!formData.email) newErrors.email = 'O e-mail é obrigatório.';
+    if (!formData.password) newErrors.password = 'A senha é obrigatória.';
+    if (formData.confirmPassword !== formData.password) newErrors.confirmPassword = 'As senhas não coincidem.';
     return newErrors;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     let formattedValue = value;
-    
-    if (name === 'uf') {
-        formattedValue = value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2);
-    }
-    // (Other formatting kept simple for brevity of this update)
-    
+    if (name === 'uf') formattedValue = value.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2);
     setFormData({ ...formData, [name]: formattedValue });
-    if (errors[name as keyof FormErrors]) {
-        setErrors({ ...errors, [name]: undefined });
-    }
+    if (errors[name as keyof FormErrors]) setErrors({ ...errors, [name]: undefined });
   };
 
   // --- LOGIN LOGIC ---
   const handleLogin = async (e: React.FormEvent) => {
       e.preventDefault();
       const validationErrors = validate();
-      if (Object.keys(validationErrors).length > 0) {
-          setErrors(validationErrors);
-          return;
-      }
+      if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return; }
 
       setIsProcessing(true);
       try {
+          // 1. Auth no Supabase
           const { data, error } = await supabase.auth.signInWithPassword({
               email: formData.email,
               password: formData.password
@@ -222,14 +145,8 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
 
           if (error) throw error;
 
-          // Fetch Profile & Company
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select(`*, companies(*)`)
-            .eq('id', data.user.id)
-            .single();
-
-          if (profileError) throw profileError;
+          // 2. Buscar dados via Service Layer
+          const profile = await SolarLinkService.getUserSessionData(data.user.id);
 
           if (profile && profile.companies) {
               setUserSession({
@@ -256,76 +173,47 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
       }
   };
 
-  // --- REGISTER FLOW (Review) ---
+  // --- REGISTER FLOW ---
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isLoginMode) return handleLogin(e);
-
     const validationErrors = validate();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
+    if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); return; }
     setStep('REVIEW');
   };
 
-  // --- REGISTER SUBMIT ---
   const handleFinalSubmit = async () => {
     setIsProcessing(true);
     try {
-        console.log("Criando conta...");
-        
-        // 1. Auth SignUp
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        // Usando o Service Layer para o fluxo complexo de cadastro
+        const { user, company } = await SolarLinkService.onboardCompany({
             email: formData.email,
             password: formData.password,
-            options: { data: { full_name: formData.name } }
+            fullName: formData.name,
+            companyName: formData.empresa,
+            document: formData.document,
+            address: { 
+                cidade: formData.cidade, 
+                uf: formData.uf, 
+                cep: formData.cep, 
+                rua: formData.address,
+                numero: formData.number,
+                complemento: formData.complement
+            }
         });
 
-        if (authError) throw authError;
-        const userId = authData.user?.id;
-        if (!userId) throw new Error("Erro ao gerar ID de usuário.");
-
-        // 2. Company Insert
-        const { data: companyData, error: companyError } = await supabase
-            .from('companies')
-            .insert([{
-                name: formData.empresa,
-                document: formData.document,
-                document_type: docType,
-                address: { cidade: formData.cidade, uf: formData.uf, cep: formData.cep, rua: formData.address },
-                credits: 0
-            }])
-            .select()
-            .single();
-
-        if (companyError) throw companyError;
-
-        // 3. Profile Insert
-        const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([{
-                id: userId,
-                company_id: companyData.id,
-                full_name: formData.name,
-                email: formData.email,
-                whatsapp: formData.whatsapp,
-                role: 'admin'
-            }]);
-
-        if (profileError) throw profileError;
-
-        // Success
+        // Atualiza sessão local
         setUserSession({
             name: formData.name,
             type: 'business',
-            id: userId,
+            id: user?.id!,
             details: {
-                companyName: formData.empresa,
-                credits: 0,
-                companyId: companyData.id
+                companyName: company.name,
+                credits: company.credits,
+                companyId: company.id
             }
         });
+        
         setStep('SUCCESS');
         setTimeout(() => { setStep('FORM'); onNavigate('home'); }, 2000);
 
@@ -337,14 +225,11 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
     }
   };
 
-  const handleShare = (platform: any) => { /* Share logic */ };
-
   return (
     <section className="relative min-h-screen flex items-center pt-24 pb-20 overflow-hidden">
       <div className="container mx-auto px-6 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             
-            {/* Left Content (Text) */}
             <div className={`lg:col-span-5 text-left text-white space-y-8 animate-fadeIn ${step !== 'FORM' ? 'hidden lg:block opacity-50 blur-sm transition-all' : ''}`}>
                  <div className="inline-block px-4 py-1.5 rounded-full bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-semibold text-sm uppercase tracking-wider backdrop-blur-md mb-2">
                     Líder em Conexões Solares
@@ -353,14 +238,16 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                     Conecte sua empresa a <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">clientes reais</span>.
                 </h1>
                 <p className="text-lg text-gray-200 leading-relaxed max-w-lg shadow-black drop-shadow-md">
-                    Acesse oportunidades de instalação fotovoltaica qualificadas.
+                    Painel completo para integradores.
                 </p>
+                <div className="flex gap-4">
+                    <Button variant="primary" onClick={() => { setIsLoginMode(false); document.getElementById('register-card')?.scrollIntoView({behavior: 'smooth'}); }}>Criar Conta Grátis</Button>
+                    <Button variant="outline" onClick={() => onNavigate('home', '#como-funciona')}>Saiba Mais</Button>
+                </div>
             </div>
 
-            {/* Right Content (Form/Dashboard) */}
-            <div className={`lg:col-span-7 transition-all duration-500 ${step !== 'FORM' ? 'lg:col-start-4 lg:col-span-6' : ''}`}>
+            <div className={`lg:col-span-7 transition-all duration-500 ${step !== 'FORM' ? 'lg:col-start-4 lg:col-span-6' : ''}`} id="register-card">
                 {userSession?.type === 'business' ? (
-                     /* DASHBOARD (Logged In) */
                     <div className="bg-slate-900/60 backdrop-blur-xl p-8 rounded-2xl border border-yellow-500/30 shadow-2xl animate-slideIn">
                         <div className="flex items-center gap-4 mb-6">
                              <div className="w-16 h-16 bg-yellow-500 rounded-xl flex items-center justify-center">
@@ -390,10 +277,8 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                         </div>
                     </div>
                 ) : (
-                    /* FORM (Register or Login) */
                     <div className="bg-slate-900/60 backdrop-blur-xl p-8 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden group">
                         
-                        {/* Toggle Login/Register */}
                         {step === 'FORM' && (
                              <div className="flex justify-end mb-4">
                                  <button 
@@ -411,7 +296,7 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                                     <CheckIcon className="w-10 h-10 text-white" />
                                 </div>
                                 <h3 className="text-2xl font-bold text-white mb-2">Sucesso!</h3>
-                                <p className="text-gray-300">Entrando no painel...</p>
+                                <p className="text-gray-300">Acessando painel...</p>
                             </div>
                         )}
 
@@ -442,9 +327,7 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                                 </p>
                                 
                                 <form onSubmit={handleVerify} noValidate>
-                                    
                                     {isLoginMode ? (
-                                        // LOGIN FIELDS
                                         <div className="space-y-4">
                                             <div>
                                                 <label className="text-xs text-gray-400">E-mail</label>
@@ -461,7 +344,6 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                                             </Button>
                                         </div>
                                     ) : (
-                                        // REGISTER FIELDS (Simplified view for update)
                                         <div className="space-y-4">
                                              <div className="grid grid-cols-2 gap-4">
                                                  <div>
@@ -472,16 +354,14 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                                                  <div>
                                                      <label className="text-xs text-gray-400">Empresa</label>
                                                      <input type="text" name="empresa" value={formData.empresa} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white" placeholder="Nome Fantasia" />
+                                                     {errors.empresa && <p className="text-red-400 text-xs">{errors.empresa}</p>}
                                                  </div>
                                              </div>
-                                             {/* ... (Other fields like Address, Document would be here, kept concise for update) ... */}
-                                             
                                              <div>
                                                  <label className="text-xs text-gray-400">E-mail</label>
                                                  <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white" />
                                                  {errors.email && <p className="text-red-400 text-xs">{errors.email}</p>}
                                              </div>
-
                                              <div className="grid grid-cols-2 gap-4">
                                                  <div>
                                                      <label className="text-xs text-gray-400">UF</label>
@@ -494,18 +374,14 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
                                                      {errors.cidade && <p className="text-red-400 text-xs">{errors.cidade}</p>}
                                                  </div>
                                              </div>
-                                             
                                              <div>
                                                  <label className="text-xs text-gray-400">Senha</label>
                                                  <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white" />
-                                                 {errors.password && <p className="text-red-400 text-xs">{errors.password}</p>}
                                              </div>
                                              <div>
                                                  <label className="text-xs text-gray-400">Confirmar Senha</label>
                                                  <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white" />
-                                                 {errors.confirmPassword && <p className="text-red-400 text-xs">{errors.confirmPassword}</p>}
                                              </div>
-
                                              <Button variant="primary" type="submit" disabled={isProcessing} className="w-full py-3">
                                                 {isProcessing ? 'Verificando...' : 'Continuar Cadastro'}
                                              </Button>

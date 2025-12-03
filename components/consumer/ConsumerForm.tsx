@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
 import Button from '../common/Button';
-import { supabase } from '../../lib/supabaseClient';
+import { SolarLinkService } from '../../lib/solarLinkService'; // Import Service
 
 export interface ConsumerData {
-    id?: string; // ID gerado pelo Supabase
+    id?: string;
     name: string;
     whatsapp: string;
     city: string;
@@ -35,31 +35,20 @@ const ConsumerForm: React.FC<ConsumerFormProps> = ({ onSubmit }) => {
         if (formData.name && formData.whatsapp && formData.city && formData.uf) {
             setIsLoading(true);
             try {
-                // Tenta salvar no Supabase
-                const { data, error } = await supabase
-                    .from('leads')
-                    .insert([
-                        { 
-                            name: formData.name, 
-                            whatsapp: formData.whatsapp, 
-                            city: formData.city, 
-                            uf: formData.uf,
-                            status: 'new'
-                        }
-                    ])
-                    .select()
-                    .single();
+                // Usa o serviço para criar o Lead
+                const data = await SolarLinkService.createLead({
+                    name: formData.name,
+                    whatsapp: formData.whatsapp,
+                    city: formData.city,
+                    uf: formData.uf
+                });
 
-                if (error) {
-                    console.error("Erro Supabase:", error);
-                    // Fallback para fluxo local se sem conexão/keys
-                    onSubmit({ ...formData, id: 'temp-' + Date.now() }); 
-                } else if (data) {
-                    // Passa o ID real do banco para o próximo passo
+                if (data) {
                     onSubmit({ ...formData, id: data.id });
                 }
             } catch (err) {
-                 console.error("Erro conexão:", err);
+                 console.error("Erro ao criar lead:", err);
+                 // Fallback simples se offline/erro
                  onSubmit({ ...formData, id: 'temp-' + Date.now() });
             } finally {
                 setIsLoading(false);
