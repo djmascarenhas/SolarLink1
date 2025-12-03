@@ -10,8 +10,9 @@ import Faq from './components/Faq';
 import CtaSection from './components/CtaSection';
 import Footer from './components/Footer';
 import Opportunities from './components/Opportunities';
+import BuyCredits from './components/BuyCredits';
 
-type ViewState = 'home' | 'opportunities';
+type ViewState = 'home' | 'opportunities' | 'buy_credits';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('home');
@@ -46,21 +47,27 @@ const App: React.FC = () => {
       <div className="relative z-10 flex flex-col min-h-screen">
           <Header onNavigate={handleNavigate} currentView={currentView} />
           <main className="flex-grow">
-            {currentView === 'home' ? (
+            {currentView === 'home' && (
               <>
                 <Hero />
                 <WhyChooseUs />
                 <HowItWorks />
                 <Features />
-                <Pricing />
+                <Pricing onNavigate={handleNavigate} />
                 <Faq />
                 <CtaSection onNavigate={handleNavigate} />
               </>
-            ) : (
+            )}
+            
+            {currentView === 'opportunities' && (
               <Opportunities 
                 onBack={() => handleNavigate('home')} 
                 onNavigate={handleNavigate} 
               />
+            )}
+
+            {currentView === 'buy_credits' && (
+              <BuyCredits onBack={() => handleNavigate('home')} />
             )}
           </main>
           <Footer />

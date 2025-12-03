@@ -53,7 +53,18 @@ const plans = [
   },
 ];
 
-const Pricing: React.FC = () => {
+interface PricingProps {
+  onNavigate?: (view: 'home' | 'opportunities' | 'buy_credits', hash?: string) => void;
+}
+
+const Pricing: React.FC<PricingProps> = ({ onNavigate }) => {
+  const handleBuyClick = () => {
+    if (onNavigate) {
+      onNavigate('buy_credits');
+      window.scrollTo(0, 0);
+    }
+  };
+
   return (
     <section id="comprar" className="py-20 bg-slate-900 relative overflow-hidden">
       {/* Background Element */}
@@ -136,14 +147,15 @@ const Pricing: React.FC = () => {
                 ))}
               </ul>
 
-              <a href="#comprar" className="w-full">
+              <div className="w-full">
                   <Button 
+                    onClick={handleBuyClick}
                     variant={plan.highlight ? 'primary' : 'outline'} 
                     className="w-full justify-center"
                   >
                     Comprar Agora
                   </Button>
-              </a>
+              </div>
             </Card>
           ))}
         </div>

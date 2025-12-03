@@ -534,9 +534,10 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate }) => 
             
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                 {/* Credit Balance Indicator */}
-                <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-1 border border-slate-700 flex justify-between items-center px-3 min-w-[180px]">
+                <div className="bg-slate-900/80 backdrop-blur-sm rounded-lg p-1 border border-slate-700 flex justify-between items-center px-3 min-w-[180px] shadow-lg">
                     <span className="text-xs text-gray-400 uppercase font-bold mr-2">Seu Saldo:</span>
-                    <span className="text-yellow-400 font-bold">{userBalance} disponíveis</span>
+                    <span className="text-yellow-400 font-bold text-lg">{userBalance}</span>
+                    <span className="text-[10px] text-gray-500 ml-1 uppercase">créditos</span>
                 </div>
                 <Button variant="outline" className="px-4 py-2 text-sm bg-slate-900/50 hover:bg-slate-800" onClick={handleBuyCredits}>
                     Comprar Créditos

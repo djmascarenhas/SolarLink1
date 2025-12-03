@@ -138,16 +138,19 @@ const Hero: React.FC = () => {
         textToProcess = "Somos uma empresa integradora de energia solar comprometida em entregar as melhores soluções fotovoltaicas, garantindo economia e sustentabilidade para nossos clientes residenciais e comerciais.";
       }
       
-      const prompt = `Atue como um especialista em marketing e copywriting para integradores de energia solar.
-      Reescreva e aprimore a seguinte descrição de empresa para torná-la altamente profissional e atraente.
+      const prompt = `Atue como um especialista sênior em marketing e copywriting para o setor de energia solar.
+      
+      Tarefa: Reescreva a descrição da empresa abaixo para torná-la altamente profissional, confiável e persuasiva.
       
       Texto Original: "${textToProcess}"
       
       Requisitos Obrigatórios:
-      1. Destaque enfaticamente: Economia financeira, Qualidade Técnica Superior e Confiança.
-      2. Tom de voz: Profissional, seguro e persuasivo.
-      3. Limite de tamanho: Mantenha o texto conciso, com no máximo 300 caracteres.
-      4. Idioma: Português do Brasil.`;
+      1. Destaque três pilares principais: Economia Financeira (ROI), Qualidade Técnica Superior (instalação e equipamentos) e Confiança/Segurança.
+      2. Tom de voz: Profissional, experiente e focado no cliente.
+      3. Limite: Máximo de 300 caracteres.
+      4. Idioma: Português do Brasil.
+      
+      Gere apenas o texto aprimorado, sem aspas ou explicações.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-flash-lite-latest',
@@ -155,7 +158,7 @@ const Hero: React.FC = () => {
       });
 
       if (response.text) {
-        setFormData(prev => ({ ...prev, message: response.text.replace(/^"|"$/g, '') }));
+        setFormData(prev => ({ ...prev, message: response.text.replace(/^"|"$/g, '').trim() }));
       }
     } catch (error) {
       console.error("Erro ao gerar texto com IA", error);

@@ -6,8 +6,8 @@ import { MenuIcon } from './icons/MenuIcon';
 import { XIcon } from './icons/XIcon';
 
 interface HeaderProps {
-    onNavigate: (view: 'home' | 'opportunities') => void;
-    currentView: 'home' | 'opportunities';
+    onNavigate: (view: 'home' | 'opportunities' | 'buy_credits') => void;
+    currentView: 'home' | 'opportunities' | 'buy_credits';
 }
 
 const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
@@ -19,6 +19,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
     
     if (target === 'oportunidades') {
         onNavigate('opportunities');
+        window.scrollTo(0, 0);
+    } else if (target === 'comprar') {
+        onNavigate('buy_credits');
         window.scrollTo(0, 0);
     } else {
         // For standard anchors, if we are not on home, go home first
@@ -50,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
           <button onClick={() => handleNavClick('oportunidades')} className={`text-gray-300 hover:text-yellow-400 transition-colors ${currentView === 'opportunities' ? 'text-yellow-400 font-semibold' : ''}`}>
               Oportunidades
           </button>
-          <button onClick={() => handleNavClick('comprar')} className="text-gray-300 hover:text-yellow-400 transition-colors">
+          <button onClick={() => handleNavClick('comprar')} className={`text-gray-300 hover:text-yellow-400 transition-colors ${currentView === 'buy_credits' ? 'text-yellow-400 font-semibold' : ''}`}>
               Comprar Créditos
           </button>
           <button onClick={() => handleNavClick('faq')} className="text-gray-300 hover:text-yellow-400 transition-colors">
