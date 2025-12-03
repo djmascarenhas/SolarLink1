@@ -8,11 +8,13 @@ import { FacebookIcon } from './icons/FacebookIcon';
 import { TwitterIcon } from './icons/TwitterIcon';
 import { LinkedInIcon } from './icons/LinkedInIcon';
 import { CheckIcon } from './icons/CheckIcon';
+import { PencilIcon } from './icons/PencilIcon';
 import { GoogleGenAI } from "@google/genai";
 import { supabase } from '../lib/supabaseClient';
 
 // Define types for form data and errors
 interface FormData {
+  id?: string; // ID for updates
   name: string;
   empresa: string;
   document: string;
@@ -98,10 +100,15 @@ const validateCNPJ = (cnpj: string) => {
   return true;
 };
 
+type FormStep = 'FORM' | 'REVIEW' | 'SUCCESS';
+
 const Hero: React.FC = () => {
+  const [step, setStep] = useState<FormStep>('FORM');
   const [docType, setDocType] = useState<'CNPJ' | 'CPF'>('CNPJ');
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // If user is updating an existing company
+  
   const [formData, setFormData] = useState<FormData>({
     name: '',
     empresa: '',
@@ -123,10 +130,10 @@ const Hero: React.FC = () => {
 
   // Password requirements calculation
   const passwordRequirements = [
-    { label: "8+ caracteres", valid: formData.password.length >= 8 },
-    { label: "Maiúscula", valid: /[A-Z]/.test(formData.password) },
-    { label: "Minúscula", valid: /[a-z]/.test(formData.password) },
-    { label: "Número", valid: /[0-9]/.test(formData.password) },
+    { label: "8+ caracteres", valid: formData.password ? formData.password.length >= 8 : false },
+    { label: "Maiúscula", valid: formData.password ? /[A-Z]/.test(formData.password) : false },
+    { label: "Minúscula", valid: formData.password ? /[a-z]/.test(formData.password) : false },
+    { label: "Número", valid: formData.password ? /[0-9]/.test(formData.password) : false },
   ];
 
   const handleAiImprove = async () => {
@@ -241,18 +248,20 @@ const Hero: React.FC = () => {
         }
     }
 
-    // Password Validation
-    if (!formData.password) {
-      newErrors.password = 'A senha é obrigatória.';
-    } else {
-      const allRequirementsMet = passwordRequirements.every(req => req.valid);
-      if (!allRequirementsMet) {
-        newErrors.password = 'A senha não atende aos requisitos.';
-      }
-    }
+    // Password Validation (Skip if editing and password is empty - meaning no change)
+    if (!isEditing || formData.password) {
+        if (!formData.password) {
+        newErrors.password = 'A senha é obrigatória.';
+        } else {
+        const allRequirementsMet = passwordRequirements.every(req => req.valid);
+        if (!allRequirementsMet) {
+            newErrors.password = 'A senha não atende aos requisitos.';
+        }
+        }
 
-    if (formData.confirmPassword !== formData.password) {
-      newErrors.confirmPassword = 'As senhas não coincidem.';
+        if (formData.confirmPassword !== formData.password) {
+        newErrors.confirmPassword = 'As senhas não coincidem.';
+        }
     }
 
     return newErrors;
@@ -309,114 +318,147 @@ const Hero: React.FC = () => {
       }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Step 1: Validate and Check DB for Existence
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-    } else {
-        // Fluxo de Cadastro real com Supabase
-        try {
-            // 1. Criar usuário de Auth (Opcional, se o projeto exigir login)
-            // Aqui vamos focar em criar as tabelas de negócio
+      return;
+    }
 
-            // 2. Criar a Empresa
-            const { data: company, error: companyError } = await supabase
-                .from('companies')
-                .insert([{
-                    name: formData.empresa,
-                    document: formData.document,
-                    document_type: docType,
-                    credits: 0, // Inicia com 0
-                    address: {
-                        rua: formData.address,
-                        numero: formData.number,
-                        complemento: formData.complement,
-                        cidade: formData.cidade,
-                        uf: formData.uf,
-                        cep: formData.cep
-                    }
-                }])
-                .select()
-                .single();
-
-            if (companyError) {
-                console.error("Erro ao criar empresa:", companyError);
-                throw companyError;
-            }
-
-            // 3. Criar o Usuário Admin vinculado (simulando ID de auth com um random por enquanto se não tiver login real)
-            // Se tiver login real: const { data: { user } } = await supabase.auth.signUp(...)
-            // Usando ID fictício para demo caso não tenha auth configurado
-            const fakeAuthId = crypto.randomUUID(); 
-
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .insert([{
-                    id: fakeAuthId, // Em produção seria user.id
-                    company_id: company.id,
-                    full_name: formData.name,
-                    email: formData.email,
-                    whatsapp: formData.whatsapp,
-                    role: 'admin'
-                }]);
-
-            if (profileError) {
-                console.error("Erro ao criar perfil:", profileError);
-                // Não bloqueia o sucesso visual se a empresa foi criada, mas loga erro
-            }
-
-             // 4. Log de Auditoria
-             await supabase.from('audit_logs').insert({
-                company_id: company.id,
-                action: 'company_registration',
-                details: { ip: 'client-side-demo' }
-            });
-
-            setShowSuccess(true);
-            setErrors({});
-            setFormData({
-                name: '',
-                empresa: '',
-                document: '',
-                cep: '',
-                address: '',
-                number: '',
-                complement: '',
-                cidade: '',
-                uf: '',
-                email: '',
-                whatsapp: '',
-                password: '',
-                confirmPassword: '',
-                message: '',
-            });
-
-            setTimeout(() => {
-                setShowSuccess(false);
-            }, 5000);
-
-        } catch (error) {
-            console.error("Erro no processo de cadastro:", error);
-            // Fallback visual para demonstração mesmo se falhar backend
-            setShowSuccess(true); 
-            setTimeout(() => setShowSuccess(false), 5000);
+    setIsProcessing(true);
+    try {
+        // Check if company exists
+        const { data: existingCompany, error } = await supabase
+            .from('companies')
+            .select('*')
+            .eq('document', formData.document)
+            .single();
+        
+        if (existingCompany) {
+            // Company exists - Switch to Edit Mode
+            setIsEditing(true);
+            setFormData(prev => ({
+                ...prev,
+                id: existingCompany.id,
+                name: prev.name, // Keep new user name usually, but here we assume company update context
+                empresa: existingCompany.name,
+                cidade: existingCompany.address?.cidade || prev.cidade,
+                uf: existingCompany.address?.uf || prev.uf,
+                cep: existingCompany.address?.cep || prev.cep,
+                address: existingCompany.address?.rua || prev.address,
+                number: existingCompany.address?.numero || prev.number,
+                complement: existingCompany.address?.complemento || prev.complement,
+                // Email/WhatsApp/Password usually belong to the User Profile, not company root, keeping form input for new user or update
+            }));
+            alert(`A empresa com ${docType} ${formData.document} já está cadastrada. Os dados foram carregados para edição.`);
+        } else {
+            setIsEditing(false);
         }
+
+        setStep('REVIEW');
+    } catch (err) {
+        console.error("Verification error", err);
+        // On error (e.g., connection), just proceed to review with what we have
+        setStep('REVIEW');
+    } finally {
+        setIsProcessing(false);
     }
   };
 
+  // Step 2: Final Submit to DB
+  const handleFinalSubmit = async () => {
+    setIsProcessing(true);
+    try {
+        let companyId = formData.id;
+
+        // 1. Create or Update Company
+        const companyPayload = {
+            name: formData.empresa,
+            document: formData.document,
+            document_type: docType,
+            address: {
+                rua: formData.address,
+                numero: formData.number,
+                complemento: formData.complement,
+                cidade: formData.cidade,
+                uf: formData.uf,
+                cep: formData.cep
+            }
+            // credits not updated here
+        };
+
+        if (isEditing && companyId) {
+            const { error } = await supabase
+                .from('companies')
+                .update(companyPayload)
+                .eq('id', companyId);
+            if (error) throw error;
+        } else {
+            const { data, error } = await supabase
+                .from('companies')
+                .insert([ { ...companyPayload, credits: 0 } ])
+                .select()
+                .single();
+            if (error) throw error;
+            companyId = data.id;
+        }
+
+        // 2. Create User Profile (Admin)
+        // Note: In real auth flow, we would check if user email exists first.
+        // For this demo, we assume we are adding a user to this company.
+        const fakeAuthId = crypto.randomUUID(); 
+
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([{
+                id: fakeAuthId, 
+                company_id: companyId,
+                full_name: formData.name,
+                email: formData.email,
+                whatsapp: formData.whatsapp,
+                role: 'admin'
+            }]);
+
+        if (profileError) {
+             console.log("User might already exist or error", profileError);
+        }
+
+        // 3. Log Audit
+        await supabase.from('audit_logs').insert({
+            company_id: companyId,
+            action: isEditing ? 'company_update' : 'company_registration',
+            details: { ip: 'client-side-demo' }
+        });
+
+        setStep('SUCCESS');
+        setTimeout(() => {
+            setStep('FORM'); // Reset after success
+            setFormData({
+                name: '', empresa: '', document: '', cep: '', address: '', number: '', complement: '',
+                cidade: '', uf: '', email: '', whatsapp: '', password: '', confirmPassword: '', message: '',
+            });
+            setIsEditing(false);
+        }, 5000);
+
+    } catch (error) {
+        console.error("Erro no cadastro:", error);
+        alert("Ocorreu um erro ao salvar os dados. Tente novamente.");
+    } finally {
+        setIsProcessing(false);
+    }
+  };
 
   return (
     <section 
       className="relative min-h-screen flex items-center pt-24 pb-20 overflow-hidden"
     >
-      {/* Background is now handled by App.tsx globally */}
-      
       <div className="container mx-auto px-6 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             
-            {/* Text Content */}
-            <div className="lg:col-span-5 text-left text-white space-y-8 animate-fadeIn">
+            {/* Text Content - Hide on Review/Success to focus */}
+            <div className={`lg:col-span-5 text-left text-white space-y-8 animate-fadeIn ${step !== 'FORM' ? 'hidden lg:block opacity-50 blur-sm transition-all' : ''}`}>
                  <div className="inline-block px-4 py-1.5 rounded-full bg-yellow-500/20 border border-yellow-500/30 text-yellow-400 font-semibold text-sm uppercase tracking-wider backdrop-blur-md mb-2">
                     Líder em Conexões Solares
                 </div>
@@ -429,7 +471,6 @@ const Hero: React.FC = () => {
                     Cadastre-se grátis e tenha acesso a oportunidades de instalação fotovoltaica. Sem mensalidade, sem comissão. Você só paga quando decide negociar.
                 </p>
 
-                {/* Social Share & Mini CTA */}
                 <div className="pt-6 border-t border-white/10">
                     <p className="text-sm text-gray-400 font-medium mb-4 uppercase tracking-wide">Compartilhe esta oportunidade</p>
                     <div className="flex gap-4 mb-6">
@@ -443,333 +484,396 @@ const Hero: React.FC = () => {
                             <LinkedInIcon className="w-5 h-5" />
                         </button>
                     </div>
-                    <a href="#comprar" className="inline-flex items-center text-yellow-400 hover:text-yellow-300 font-medium transition-colors group">
-                        Já possui cadastro? Comprar Créditos 
-                        <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
-                    </a>
                 </div>
             </div>
 
             {/* Form Content - Glassmorphism Card */}
-            <div className="lg:col-span-7">
+            <div className={`lg:col-span-7 transition-all duration-500 ${step !== 'FORM' ? 'lg:col-start-4 lg:col-span-6' : ''}`}>
                 <div className="bg-slate-900/60 backdrop-blur-xl p-8 rounded-2xl border border-white/10 shadow-2xl relative overflow-hidden group">
-                    {/* Decorative glow inside card */}
                     <div className="absolute -top-24 -right-24 w-64 h-64 bg-yellow-500/10 rounded-full blur-3xl group-hover:bg-yellow-500/20 transition-all duration-700"></div>
                     
-                    <div className="relative z-10">
-                        <h3 className="text-2xl font-bold text-white mb-2">Cadastre sua empresa</h3>
-                        <p className="text-gray-400 text-sm mb-6">Junte-se a rede de integradores que mais cresce no país.</p>
-                        
-                        {showSuccess && (
-                            <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 rounded-lg flex items-center gap-3 animate-fadeIn backdrop-blur-md">
-                                <div className="bg-green-500 rounded-full p-1 flex-shrink-0 shadow-lg">
-                                    <CheckIcon className="w-4 h-4 text-white" />
-                                </div>
-                                <div className="text-left">
-                                    <h4 className="font-bold text-white text-sm">Cadastro enviado com sucesso!</h4>
-                                    <p className="text-xs text-green-100">Entraremos em contato em breve.</p>
+                    {step === 'SUCCESS' && (
+                         <div className="flex flex-col items-center justify-center py-10 animate-fadeIn">
+                             <div className="bg-green-500 rounded-full p-4 shadow-lg mb-6 animate-bounce">
+                                 <CheckIcon className="w-10 h-10 text-white" />
+                             </div>
+                             <h3 className="text-2xl font-bold text-white mb-2">Cadastro Realizado!</h3>
+                             <p className="text-gray-300 text-center max-w-sm">
+                                 Sua empresa foi {isEditing ? 'atualizada' : 'cadastrada'} com sucesso. Entraremos em contato para validar suas credenciais.
+                             </p>
+                         </div>
+                    )}
+
+                    {step === 'REVIEW' && (
+                        <div className="relative z-10 animate-fadeIn">
+                            <h3 className="text-2xl font-bold text-white mb-2">Confirmar Dados</h3>
+                            <p className="text-gray-400 text-sm mb-6">Verifique se as informações abaixo estão corretas antes de finalizar.</p>
+
+                            <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700 space-y-4 mb-6">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-xs text-gray-500 uppercase font-bold">Empresa</p>
+                                        <p className="text-white font-medium">{formData.empresa}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 uppercase font-bold">Documento</p>
+                                        <p className="text-white font-medium">{formData.document}</p>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <p className="text-xs text-gray-500 uppercase font-bold">Endereço</p>
+                                        <p className="text-white font-medium">{formData.address}, {formData.number} {formData.complement}</p>
+                                        <p className="text-white font-medium">{formData.cidade} - {formData.uf}, {formData.cep}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 uppercase font-bold">Responsável</p>
+                                        <p className="text-white font-medium">{formData.name}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 uppercase font-bold">Contato</p>
+                                        <p className="text-white font-medium">{formData.email}</p>
+                                        <p className="text-white font-medium">{formData.whatsapp}</p>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <p className="text-xs text-gray-500 uppercase font-bold">Descrição</p>
+                                        <p className="text-gray-300 text-sm italic">"{formData.message}"</p>
+                                    </div>
                                 </div>
                             </div>
-                        )}
 
-                        <form onSubmit={handleSubmit} noValidate>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-5">
-                                <div className="group/input">
-                                    <label htmlFor="name" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Seu Nome</label>
-                                    <input 
-                                    type="text" 
-                                    id="name" 
-                                    name="name" 
-                                    required 
-                                    value={formData.name}
-                                    onChange={handleChange}
-                                    className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.name ? 'border-red-500' : 'border-slate-700'}`} 
-                                    placeholder="João Silva"
-                                    />
-                                    {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name}</p>}
-                                </div>
-                                <div className="group/input">
-                                    <div className="flex items-center gap-1 mb-1">
-                                        <label htmlFor="empresa" className="block text-xs font-medium text-gray-400 group-focus-within/input:text-yellow-400 transition-colors">Nome da Empresa</label>
-                                        <Tooltip text="Nome fantasia ou razão social.">
-                                            <InfoIcon className="w-3 h-3 text-gray-500 hover:text-gray-300 transition-colors cursor-help" />
-                                        </Tooltip>
+                            <div className="flex gap-4">
+                                <Button 
+                                    variant="outline" 
+                                    onClick={() => setStep('FORM')}
+                                    className="w-1/3 flex items-center justify-center gap-2 border-slate-600 text-gray-400 hover:text-white"
+                                >
+                                    <PencilIcon className="w-4 h-4" />
+                                    Editar
+                                </Button>
+                                <Button 
+                                    variant="primary" 
+                                    onClick={handleFinalSubmit}
+                                    className="w-2/3 flex items-center justify-center gap-2"
+                                    disabled={isProcessing}
+                                >
+                                    {isProcessing ? (
+                                        <span className="animate-pulse">Salvando...</span>
+                                    ) : (
+                                        <>
+                                            <CheckIcon className="w-4 h-4" />
+                                            Confirmar e Salvar
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 'FORM' && (
+                        <div className="relative z-10 animate-fadeIn">
+                            <h3 className="text-2xl font-bold text-white mb-2">Cadastre sua empresa</h3>
+                            <p className="text-gray-400 text-sm mb-6">Junte-se a rede de integradores que mais cresce no país.</p>
+                            
+                            <form onSubmit={handleVerify} noValidate>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-5">
+                                    <div className="group/input">
+                                        <label htmlFor="name" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Seu Nome</label>
+                                        <input 
+                                        type="text" 
+                                        id="name" 
+                                        name="name" 
+                                        required 
+                                        value={formData.name}
+                                        onChange={handleChange}
+                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.name ? 'border-red-500' : 'border-slate-700'}`} 
+                                        placeholder="João Silva"
+                                        />
+                                        {errors.name && <p className="text-red-400 text-xs mt-1">{errors.name}</p>}
                                     </div>
-                                    <input 
-                                    type="text" 
-                                    id="empresa" 
-                                    name="empresa" 
-                                    required 
-                                    value={formData.empresa}
-                                    onChange={handleChange}
-                                    className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.empresa ? 'border-red-500' : 'border-slate-700'}`} 
-                                    placeholder="Solar Solutions"
-                                    />
-                                    {errors.empresa && <p className="text-red-400 text-xs mt-1">{errors.empresa}</p>}
-                                </div>
+                                    <div className="group/input">
+                                        <div className="flex items-center gap-1 mb-1">
+                                            <label htmlFor="empresa" className="block text-xs font-medium text-gray-400 group-focus-within/input:text-yellow-400 transition-colors">Nome da Empresa</label>
+                                            <Tooltip text="Nome fantasia ou razão social.">
+                                                <InfoIcon className="w-3 h-3 text-gray-500 hover:text-gray-300 transition-colors cursor-help" />
+                                            </Tooltip>
+                                        </div>
+                                        <input 
+                                        type="text" 
+                                        id="empresa" 
+                                        name="empresa" 
+                                        required 
+                                        value={formData.empresa}
+                                        onChange={handleChange}
+                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.empresa ? 'border-red-500' : 'border-slate-700'}`} 
+                                        placeholder="Solar Solutions"
+                                        />
+                                        {errors.empresa && <p className="text-red-400 text-xs mt-1">{errors.empresa}</p>}
+                                    </div>
 
-                                <div className="md:col-span-2 group/input">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <div className="flex items-center gap-1">
-                                            <label className="block text-xs font-medium text-gray-400 group-focus-within/input:text-yellow-400 transition-colors">Documento</label>
-                                            <Tooltip text={docType === 'CNPJ' ? 'Formato: XX.XXX.XXX/XXXX-XX' : 'Formato: XXX.XXX.XXX-XX'}>
+                                    <div className="md:col-span-2 group/input">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <div className="flex items-center gap-1">
+                                                <label className="block text-xs font-medium text-gray-400 group-focus-within/input:text-yellow-400 transition-colors">Documento</label>
+                                                <Tooltip text={docType === 'CNPJ' ? 'Formato: XX.XXX.XXX/XXXX-XX' : 'Formato: XXX.XXX.XXX-XX'}>
+                                                    <InfoIcon className="w-3 h-3 text-gray-500 hover:text-gray-300 cursor-help" />
+                                                </Tooltip>
+                                            </div>
+                                            <div className="flex bg-slate-800/80 rounded-md p-0.5 border border-slate-700/50">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDocTypeChange('CNPJ')}
+                                                    className={`px-3 py-0.5 text-xs rounded transition-all ${docType === 'CNPJ' ? 'bg-yellow-500 text-slate-900 font-bold shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                                                >
+                                                    CNPJ
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDocTypeChange('CPF')}
+                                                    className={`px-3 py-0.5 text-xs rounded transition-all ${docType === 'CPF' ? 'bg-yellow-500 text-slate-900 font-bold shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                                                >
+                                                    CPF
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="tel"
+                                            id="document"
+                                            name="document"
+                                            placeholder={docType === 'CNPJ' ? '00.000.000/0000-00' : '000.000.000-00'}
+                                            required
+                                            value={formData.document}
+                                            onChange={handleChange}
+                                            maxLength={docType === 'CNPJ' ? 18 : 14}
+                                            className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.document ? 'border-red-500' : 'border-slate-700'}`}
+                                        />
+                                        {errors.document && <p className="text-red-400 text-xs mt-1">{errors.document}</p>}
+                                    </div>
+                                    
+                                    <div className="md:col-span-2 grid grid-cols-4 gap-4">
+                                        <div className="col-span-3 group/input">
+                                            <label htmlFor="cidade" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Cidade</label>
+                                            <input 
+                                                type="text" 
+                                                id="cidade" 
+                                                name="cidade" 
+                                                required 
+                                                value={formData.cidade}
+                                                onChange={handleChange}
+                                                className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.cidade ? 'border-red-500' : 'border-slate-700'}`} 
+                                                placeholder="São Paulo"
+                                            />
+                                            {errors.cidade && <p className="text-red-400 text-xs mt-1">{errors.cidade}</p>}
+                                        </div>
+                                        <div className="group/input">
+                                            <label htmlFor="uf" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">UF</label>
+                                            <input 
+                                                type="text" 
+                                                id="uf" 
+                                                name="uf" 
+                                                maxLength={2} 
+                                                required 
+                                                value={formData.uf}
+                                                onChange={handleChange}
+                                                className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm text-center ${errors.uf ? 'border-red-500' : 'border-slate-700'}`} 
+                                                placeholder="SP"
+                                            />
+                                            {errors.uf && <p className="text-red-400 text-xs mt-1">{errors.uf}</p>}
+                                        </div>
+                                    </div>
+
+                                    {/* Address Fields */}
+                                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="group/input md:col-span-1">
+                                        <label htmlFor="cep" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">CEP</label>
+                                        <input 
+                                            type="tel" 
+                                            id="cep" 
+                                            name="cep" 
+                                            required 
+                                            maxLength={9}
+                                            value={formData.cep}
+                                            onChange={handleChange}
+                                            className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.cep ? 'border-red-500' : 'border-slate-700'}`} 
+                                            placeholder="00000-000"
+                                        />
+                                        {errors.cep && <p className="text-red-400 text-xs mt-1">{errors.cep}</p>}
+                                    </div>
+                                    <div className="group/input md:col-span-2">
+                                        <label htmlFor="address" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Endereço (Rua/Av)</label>
+                                        <input 
+                                            type="text" 
+                                            id="address" 
+                                            name="address" 
+                                            required 
+                                            value={formData.address}
+                                            onChange={handleChange}
+                                            className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.address ? 'border-red-500' : 'border-slate-700'}`} 
+                                            placeholder="Av. Paulista"
+                                        />
+                                        {errors.address && <p className="text-red-400 text-xs mt-1">{errors.address}</p>}
+                                    </div>
+                                    </div>
+
+                                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="group/input md:col-span-1">
+                                        <label htmlFor="number" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Número</label>
+                                        <input 
+                                            type="text" 
+                                            id="number" 
+                                            name="number" 
+                                            required 
+                                            value={formData.number}
+                                            onChange={handleChange}
+                                            className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.number ? 'border-red-500' : 'border-slate-700'}`} 
+                                            placeholder="1000"
+                                        />
+                                        {errors.number && <p className="text-red-400 text-xs mt-1">{errors.number}</p>}
+                                    </div>
+                                    <div className="group/input md:col-span-2">
+                                        <label htmlFor="complement" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Complemento</label>
+                                        <input 
+                                            type="text" 
+                                            id="complement" 
+                                            name="complement" 
+                                            value={formData.complement}
+                                            onChange={handleChange}
+                                            className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm"
+                                            placeholder="Sala 101, Bloco A"
+                                        />
+                                    </div>
+                                    </div>
+                                    
+                                    <div className="group/input">
+                                        <div className="flex items-center gap-1 mb-1">
+                                            <label htmlFor="email" className="block text-xs font-medium text-gray-400 group-focus-within/input:text-yellow-400 transition-colors">E-mail Profissional</label>
+                                            <Tooltip text="Importante para notificações.">
                                                 <InfoIcon className="w-3 h-3 text-gray-500 hover:text-gray-300 cursor-help" />
                                             </Tooltip>
                                         </div>
-                                        <div className="flex bg-slate-800/80 rounded-md p-0.5 border border-slate-700/50">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDocTypeChange('CNPJ')}
-                                                className={`px-3 py-0.5 text-xs rounded transition-all ${docType === 'CNPJ' ? 'bg-yellow-500 text-slate-900 font-bold shadow-sm' : 'text-gray-400 hover:text-white'}`}
-                                            >
-                                                CNPJ
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDocTypeChange('CPF')}
-                                                className={`px-3 py-0.5 text-xs rounded transition-all ${docType === 'CPF' ? 'bg-yellow-500 text-slate-900 font-bold shadow-sm' : 'text-gray-400 hover:text-white'}`}
-                                            >
-                                                CPF
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <input
-                                        type="tel"
-                                        id="document"
-                                        name="document"
-                                        placeholder={docType === 'CNPJ' ? '00.000.000/0000-00' : '000.000.000-00'}
-                                        required
-                                        value={formData.document}
-                                        onChange={handleChange}
-                                        maxLength={docType === 'CNPJ' ? 18 : 14}
-                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.document ? 'border-red-500' : 'border-slate-700'}`}
-                                    />
-                                    {errors.document && <p className="text-red-400 text-xs mt-1">{errors.document}</p>}
-                                </div>
-                                
-                                <div className="md:col-span-2 grid grid-cols-4 gap-4">
-                                    <div className="col-span-3 group/input">
-                                        <label htmlFor="cidade" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Cidade</label>
                                         <input 
-                                            type="text" 
-                                            id="cidade" 
-                                            name="cidade" 
-                                            required 
-                                            value={formData.cidade}
-                                            onChange={handleChange}
-                                            className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.cidade ? 'border-red-500' : 'border-slate-700'}`} 
-                                            placeholder="São Paulo"
+                                        type="email" 
+                                        id="email" 
+                                        name="email" 
+                                        required 
+                                        value={formData.email}
+                                        onChange={handleChange}
+                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.email ? 'border-red-500' : 'border-slate-700'}`} 
+                                        placeholder="contato@empresa.com"
                                         />
-                                        {errors.cidade && <p className="text-red-400 text-xs mt-1">{errors.cidade}</p>}
+                                        {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
                                     </div>
                                     <div className="group/input">
-                                        <label htmlFor="uf" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">UF</label>
+                                        <label htmlFor="whatsapp" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">WhatsApp</label>
                                         <input 
-                                            type="text" 
-                                            id="uf" 
-                                            name="uf" 
-                                            maxLength={2} 
-                                            required 
-                                            value={formData.uf}
-                                            onChange={handleChange}
-                                            className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm text-center ${errors.uf ? 'border-red-500' : 'border-slate-700'}`} 
-                                            placeholder="SP"
-                                        />
-                                        {errors.uf && <p className="text-red-400 text-xs mt-1">{errors.uf}</p>}
-                                    </div>
-                                </div>
-
-                                {/* Address Fields */}
-                                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                   <div className="group/input md:col-span-1">
-                                      <label htmlFor="cep" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">CEP</label>
-                                      <input 
                                         type="tel" 
-                                        id="cep" 
-                                        name="cep" 
+                                        id="whatsapp" 
+                                        name="whatsapp" 
                                         required 
-                                        maxLength={9}
-                                        value={formData.cep}
+                                        value={formData.whatsapp}
                                         onChange={handleChange}
-                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.cep ? 'border-red-500' : 'border-slate-700'}`} 
-                                        placeholder="00000-000"
-                                      />
-                                      {errors.cep && <p className="text-red-400 text-xs mt-1">{errors.cep}</p>}
-                                   </div>
-                                   <div className="group/input md:col-span-2">
-                                      <label htmlFor="address" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Endereço (Rua/Av)</label>
-                                      <input 
-                                        type="text" 
-                                        id="address" 
-                                        name="address" 
-                                        required 
-                                        value={formData.address}
-                                        onChange={handleChange}
-                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.address ? 'border-red-500' : 'border-slate-700'}`} 
-                                        placeholder="Av. Paulista"
-                                      />
-                                      {errors.address && <p className="text-red-400 text-xs mt-1">{errors.address}</p>}
-                                   </div>
-                                </div>
-
-                                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                   <div className="group/input md:col-span-1">
-                                      <label htmlFor="number" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Número</label>
-                                      <input 
-                                        type="text" 
-                                        id="number" 
-                                        name="number" 
-                                        required 
-                                        value={formData.number}
-                                        onChange={handleChange}
-                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.number ? 'border-red-500' : 'border-slate-700'}`} 
-                                        placeholder="1000"
-                                      />
-                                      {errors.number && <p className="text-red-400 text-xs mt-1">{errors.number}</p>}
-                                   </div>
-                                   <div className="group/input md:col-span-2">
-                                      <label htmlFor="complement" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Complemento</label>
-                                      <input 
-                                        type="text" 
-                                        id="complement" 
-                                        name="complement" 
-                                        value={formData.complement}
-                                        onChange={handleChange}
-                                        className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm"
-                                        placeholder="Sala 101, Bloco A"
-                                      />
-                                   </div>
-                                </div>
-                                
-                                <div className="group/input">
-                                    <div className="flex items-center gap-1 mb-1">
-                                        <label htmlFor="email" className="block text-xs font-medium text-gray-400 group-focus-within/input:text-yellow-400 transition-colors">E-mail Profissional</label>
-                                        <Tooltip text="Importante para notificações.">
-                                            <InfoIcon className="w-3 h-3 text-gray-500 hover:text-gray-300 cursor-help" />
-                                        </Tooltip>
+                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.whatsapp ? 'border-red-500' : 'border-slate-700'}`} 
+                                        placeholder="(11) 99999-9999"
+                                        />
+                                        {errors.whatsapp && <p className="text-red-400 text-xs mt-1">{errors.whatsapp}</p>}
                                     </div>
-                                    <input 
-                                    type="email" 
-                                    id="email" 
-                                    name="email" 
-                                    required 
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.email ? 'border-red-500' : 'border-slate-700'}`} 
-                                    placeholder="contato@empresa.com"
-                                    />
-                                    {errors.email && <p className="text-red-400 text-xs mt-1">{errors.email}</p>}
-                                </div>
-                                <div className="group/input">
-                                    <label htmlFor="whatsapp" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">WhatsApp</label>
-                                    <input 
-                                    type="tel" 
-                                    id="whatsapp" 
-                                    name="whatsapp" 
-                                    required 
-                                    value={formData.whatsapp}
-                                    onChange={handleChange}
-                                    className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.whatsapp ? 'border-red-500' : 'border-slate-700'}`} 
-                                    placeholder="(11) 99999-9999"
-                                    />
-                                    {errors.whatsapp && <p className="text-red-400 text-xs mt-1">{errors.whatsapp}</p>}
-                                </div>
-                                
-                                <div className="group/input">
-                                    <label htmlFor="password" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Senha</label>
-                                    <input 
-                                        type="password" 
-                                        id="password" 
-                                        name="password" 
-                                        required 
-                                        value={formData.password}
-                                        onChange={handleChange}
-                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.password ? 'border-red-500' : 'border-slate-700'}`} 
-                                        placeholder="••••••••"
-                                    />
                                     
-                                    {/* Enhanced Password Feedback */}
-                                    <div className="mt-2 space-y-2">
-                                        {formData.password && (
-                                            <div className="flex gap-1 h-1">
-                                                {[1, 2, 3, 4].map((step) => (
-                                                    <div 
-                                                        key={step} 
-                                                        className={`flex-1 rounded-full transition-all duration-300 ${
-                                                            passwordRequirements.filter(r => r.valid).length >= step 
-                                                            ? (passwordRequirements.every(r => r.valid) ? 'bg-green-500' : 'bg-yellow-500')
-                                                            : 'bg-slate-700'
-                                                        }`}
-                                                    ></div>
-                                                ))}
+                                    <div className="group/input">
+                                        <label htmlFor="password" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Senha</label>
+                                        <input 
+                                            type="password" 
+                                            id="password" 
+                                            name="password" 
+                                            required={!isEditing}
+                                            value={formData.password}
+                                            onChange={handleChange}
+                                            className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.password ? 'border-red-500' : 'border-slate-700'}`} 
+                                            placeholder={isEditing ? "(Deixe em branco para não alterar)" : "••••••••"}
+                                        />
+                                        
+                                        {/* Enhanced Password Feedback - Only show if typing or not editing */}
+                                        {(formData.password || !isEditing) && (
+                                            <div className="mt-2 space-y-2">
+                                                {formData.password && (
+                                                    <div className="flex gap-1 h-1">
+                                                        {[1, 2, 3, 4].map((step) => (
+                                                            <div 
+                                                                key={step} 
+                                                                className={`flex-1 rounded-full transition-all duration-300 ${
+                                                                    passwordRequirements.filter(r => r.valid).length >= step 
+                                                                    ? (passwordRequirements.every(r => r.valid) ? 'bg-green-500' : 'bg-yellow-500')
+                                                                    : 'bg-slate-700'
+                                                                }`}
+                                                            ></div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="grid grid-cols-2 gap-1">
+                                                    {passwordRequirements.map((req, index) => (
+                                                        <div key={index} className={`text-[10px] flex items-center gap-1.5 transition-colors duration-300 ${req.valid ? 'text-green-400 font-medium' : 'text-gray-500'}`}>
+                                                            <div className={`w-3 h-3 rounded-full flex items-center justify-center border transition-all ${req.valid ? 'border-green-400 bg-green-400/20' : 'border-slate-600 bg-transparent'}`}>
+                                                                {req.valid && <CheckIcon className="w-2 h-2" />}
+                                                            </div>
+                                                            {req.label}
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         )}
-                                        
-                                        <div className="grid grid-cols-2 gap-1">
-                                            {passwordRequirements.map((req, index) => (
-                                                <div key={index} className={`text-[10px] flex items-center gap-1.5 transition-colors duration-300 ${req.valid ? 'text-green-400 font-medium' : 'text-gray-500'}`}>
-                                                    <div className={`w-3 h-3 rounded-full flex items-center justify-center border transition-all ${req.valid ? 'border-green-400 bg-green-400/20' : 'border-slate-600 bg-transparent'}`}>
-                                                        {req.valid && <CheckIcon className="w-2 h-2" />}
-                                                    </div>
-                                                    {req.label}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
 
-                                    {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password}</p>}
+                                        {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password}</p>}
+                                    </div>
+                                    <div className="group/input">
+                                        <label htmlFor="confirmPassword" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Confirmar Senha</label>
+                                        <input 
+                                            type="password" 
+                                            id="confirmPassword" 
+                                            name="confirmPassword" 
+                                            required={!isEditing}
+                                            value={formData.confirmPassword}
+                                            onChange={handleChange}
+                                            className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.confirmPassword ? 'border-red-500' : 'border-slate-700'}`} 
+                                            placeholder={isEditing ? "(Deixe em branco para não alterar)" : "••••••••"}
+                                        />
+                                        {errors.confirmPassword && <p className="text-red-400 text-xs mt-1">{errors.confirmPassword}</p>}
+                                    </div>
                                 </div>
-                                <div className="group/input">
-                                    <label htmlFor="confirmPassword" className="block text-xs font-medium text-gray-400 mb-1 group-focus-within/input:text-yellow-400 transition-colors">Confirmar Senha</label>
-                                    <input 
-                                        type="password" 
-                                        id="confirmPassword" 
-                                        name="confirmPassword" 
-                                        required 
-                                        value={formData.confirmPassword}
-                                        onChange={handleChange}
-                                        className={`w-full bg-slate-800/50 border rounded-lg px-3 py-2.5 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm ${errors.confirmPassword ? 'border-red-500' : 'border-slate-700'}`} 
-                                        placeholder="••••••••"
-                                    />
-                                    {errors.confirmPassword && <p className="text-red-400 text-xs mt-1">{errors.confirmPassword}</p>}
+                                
+                                <div className="my-5 relative group/input">
+                                    <div className="flex justify-between items-center mb-1">
+                                    <label htmlFor="message" className="block text-xs font-medium text-gray-400 group-focus-within/input:text-yellow-400 transition-colors">Descrição da Empresa</label>
+                                    <button 
+                                        type="button" 
+                                        onClick={handleAiImprove}
+                                        disabled={isAiLoading}
+                                        className="text-xs flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-500/30 transition-all disabled:opacity-50"
+                                    >
+                                        <SparklesIcon className={`w-3.5 h-3.5 ${isAiLoading ? 'animate-spin' : ''}`} />
+                                        {isAiLoading ? 'Gerando...' : 'Melhorar com IA'}
+                                    </button>
+                                    </div>
+                                    <textarea 
+                                    id="message" 
+                                    name="message" 
+                                    rows={3} 
+                                    value={formData.message}
+                                    onChange={handleChange}
+                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm text-sm"
+                                    placeholder="Breve descrição dos seus serviços..."
+                                    ></textarea>
                                 </div>
-                            </div>
-                            
-                            <div className="my-5 relative group/input">
-                                <div className="flex justify-between items-center mb-1">
-                                <label htmlFor="message" className="block text-xs font-medium text-gray-400 group-focus-within/input:text-yellow-400 transition-colors">Descrição da Empresa</label>
-                                <button 
-                                    type="button" 
-                                    onClick={handleAiImprove}
-                                    disabled={isAiLoading}
-                                    className="text-xs flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-500/30 transition-all disabled:opacity-50"
-                                >
-                                    <SparklesIcon className={`w-3.5 h-3.5 ${isAiLoading ? 'animate-spin' : ''}`} />
-                                    {isAiLoading ? 'Gerando...' : 'Melhorar com IA'}
-                                </button>
+                                
+                                <Button variant="primary" type="submit" className="w-full text-base font-bold py-3.5 shadow-lg shadow-yellow-500/20 hover:shadow-yellow-500/40 transition-all transform hover:-translate-y-0.5">
+                                    {isProcessing ? 'Verificando...' : 'Finalizar Cadastro Gratuito'}
+                                </Button>
+                                
+                                <div className="mt-4 text-center">
+                                    <a href="#como-funciona" className="text-xs text-gray-400 hover:text-white transition-colors border-b border-dashed border-gray-600 hover:border-white pb-0.5">
+                                        Como funciona a plataforma?
+                                    </a>
                                 </div>
-                                <textarea 
-                                id="message" 
-                                name="message" 
-                                rows={3} 
-                                value={formData.message}
-                                onChange={handleChange}
-                                className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500 transition-all outline-none backdrop-blur-sm text-sm"
-                                placeholder="Breve descrição dos seus serviços..."
-                                ></textarea>
-                            </div>
-                            
-                            <Button variant="primary" type="submit" className="w-full text-base font-bold py-3.5 shadow-lg shadow-yellow-500/20 hover:shadow-yellow-500/40 transition-all transform hover:-translate-y-0.5">
-                                Finalizar Cadastro Gratuito
-                            </Button>
-                            
-                            <div className="mt-4 text-center">
-                                <a href="#como-funciona" className="text-xs text-gray-400 hover:text-white transition-colors border-b border-dashed border-gray-600 hover:border-white pb-0.5">
-                                    Como funciona a plataforma?
-                                </a>
-                            </div>
-                        </form>
-                    </div>
+                            </form>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
