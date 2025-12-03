@@ -688,4 +688,47 @@ const Opportunities: React.FC<OpportunitiesProps> = ({ onBack, onNavigate, initi
                                 onMouseLeave={() => setHoveredMapItem(null)}
                                 className="relative flex items-center justify-center w-8 h-8 -translate-x-1/2 -translate-y-1/2 hover:scale-110 transition-transform focus:outline-none group"
                             >
-                                <div className={`absolute w-full h-full rounded-full ${isActive ? '' : 'animate-
+                                <div className={`absolute w-full h-full rounded-full ${isActive ? '' : 'animate-ping'} bg-yellow-500 opacity-75`}></div>
+                                <div className={`relative w-4 h-4 rounded-full border-2 border-slate-900 shadow-lg ${isActive ? 'bg-yellow-400 scale-125' : 'bg-yellow-500'}`}></div>
+                                
+                                {/* Marker Tooltip */}
+                                {(showCard) && (
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 z-50 animate-fadeIn pointer-events-none">
+                                        <div className="bg-slate-900 border border-slate-600 rounded-xl p-3 shadow-xl backdrop-blur-md relative">
+                                            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-900 border-r border-b border-slate-600 rotate-45"></div>
+                                            
+                                            <div className="flex justify-between items-start mb-2">
+                                                 <div className="flex items-center gap-1.5">
+                                                     {getIcon(opp.type, "w-4 h-4")}
+                                                     <span className="text-xs font-bold text-white uppercase">{opp.type}</span>
+                                                 </div>
+                                                 <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-gray-400">{opp.systemSize}</span>
+                                            </div>
+                                            
+                                            <p className="text-xs text-gray-300 mb-2 truncate">{opp.description}</p>
+                                            
+                                            <div className="flex justify-between items-center pt-2 border-t border-slate-700/50">
+                                                <div className="flex items-center gap-1 text-xs text-gray-400">
+                                                    <MapPinIcon className="w-3 h-3" />
+                                                    {opp.city}
+                                                </div>
+                                                <div className="flex items-center gap-1 text-xs font-bold text-yellow-500">
+                                                    <CoinsIcon className="w-3 h-3" />
+                                                    {opp.credits}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </button>
+                        </div>
+                    );
+                })}
+            </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
+export default Opportunities;

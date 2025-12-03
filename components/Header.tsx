@@ -6,15 +6,15 @@ import { MenuIcon } from './icons/MenuIcon';
 import { XIcon } from './icons/XIcon';
 
 interface HeaderProps {
-    onNavigate: (view: 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer', param?: string) => void;
-    currentView: 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer';
+    onNavigate: (view: 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer' | 'user_registration', param?: string) => void;
+    currentView: 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer' | 'user_registration';
 }
 
 const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Function to handle navigation links
-  const handleNavClick = (view: 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer', param?: string) => {
+  const handleNavClick = (view: 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer' | 'user_registration', param?: string) => {
     setIsMenuOpen(false);
     onNavigate(view, param);
     if (view !== 'home' || !param) {
@@ -22,7 +22,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentView }) => {
     }
   };
 
-  const isBusinessView = currentView === 'home' || currentView === 'opportunities' || currentView === 'buy_credits';
+  const isBusinessView = currentView === 'home' || currentView === 'opportunities' || currentView === 'buy_credits' || currentView === 'user_registration';
   const isConsumerView = currentView === 'consumer';
 
   return (
