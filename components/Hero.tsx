@@ -12,8 +12,8 @@ import { PencilIcon } from './icons/PencilIcon';
 import { BuildingIcon } from './icons/BuildingIcon';
 import { CoinsIcon } from './icons/CoinsIcon';
 import { GoogleGenAI } from "@google/genai";
-import { supabase } from '../lib/supabaseClient';
-import { UserSession } from '../App';
+import { authApi } from '../lib/api';
+import { UserSession } from '../contexts/AuthContext';
 
 // Define types for form data and errors
 interface FormData {
@@ -215,34 +215,13 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
 
       setIsProcessing(true);
       try {
-          const { data, error } = await supabase.auth.signInWithPassword({
+          const session = await authApi.login({
               email: formData.email,
               password: formData.password
           });
 
-          if (error) throw error;
-
-          // Fetch Profile & Company
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select(`*, companies(*)`)
-            .eq('id', data.user.id)
-            .single();
-
-          if (profileError) throw profileError;
-
-          if (profile && profile.companies) {
-              setUserSession({
-                  name: profile.full_name,
-                  type: 'business',
-                  id: data.user.id,
-                  details: {
-                      companyName: profile.companies.name,
-                      credits: profile.companies.credits,
-                      companyId: profile.companies.id,
-                      role: profile.role
-                  }
-              });
+          if (session?.details?.companyId) {
+              setUserSession(session);
               onNavigate('home');
           } else {
               alert("Perfil de empresa não encontrado.");
@@ -274,58 +253,28 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
     setIsProcessing(true);
     try {
         console.log("Criando conta...");
-        
-        // 1. Auth SignUp
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+
+        const session = await authApi.register({
+            fullName: formData.name,
             email: formData.email,
             password: formData.password,
-            options: { data: { full_name: formData.name } }
-        });
-
-        if (authError) throw authError;
-        const userId = authData.user?.id;
-        if (!userId) throw new Error("Erro ao gerar ID de usuário.");
-
-        // 2. Company Insert
-        const { data: companyData, error: companyError } = await supabase
-            .from('companies')
-            .insert([{
+            whatsapp: formData.whatsapp,
+            company: {
                 name: formData.empresa,
                 document: formData.document,
-                document_type: docType,
-                address: { cidade: formData.cidade, uf: formData.uf, cep: formData.cep, rua: formData.address },
-                credits: 0
-            }])
-            .select()
-            .single();
-
-        if (companyError) throw companyError;
-
-        // 3. Profile Insert
-        const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([{
-                id: userId,
-                company_id: companyData.id,
-                full_name: formData.name,
-                email: formData.email,
-                whatsapp: formData.whatsapp,
-                role: 'admin'
-            }]);
-
-        if (profileError) throw profileError;
-
-        // Success
-        setUserSession({
-            name: formData.name,
-            type: 'business',
-            id: userId,
-            details: {
-                companyName: formData.empresa,
-                credits: 0,
-                companyId: companyData.id
-            }
+                documentType: docType,
+                address: {
+                    cidade: formData.cidade,
+                    uf: formData.uf,
+                    cep: formData.cep,
+                    rua: formData.address,
+                    numero: formData.number,
+                    complemento: formData.complement,
+                },
+            },
         });
+
+        setUserSession(session);
         setStep('SUCCESS');
         setTimeout(() => { setStep('FORM'); onNavigate('home'); }, 2000);
 

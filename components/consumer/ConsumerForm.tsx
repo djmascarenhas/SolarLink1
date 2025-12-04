@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import Button from '../common/Button';
-import { supabase } from '../../lib/supabaseClient';
+import { leadsApi } from '../../lib/api';
 
 export interface ConsumerData {
     id?: string; // ID gerado pelo Supabase
@@ -35,28 +35,17 @@ const ConsumerForm: React.FC<ConsumerFormProps> = ({ onSubmit }) => {
         if (formData.name && formData.whatsapp && formData.city && formData.uf) {
             setIsLoading(true);
             try {
-                // Tenta salvar no Supabase
-                const { data, error } = await supabase
-                    .from('leads')
-                    .insert([
-                        { 
-                            name: formData.name, 
-                            whatsapp: formData.whatsapp, 
-                            city: formData.city, 
-                            uf: formData.uf,
-                            status: 'new'
-                        }
-                    ])
-                    .select()
-                    .single();
+                const lead = await leadsApi.createLead({
+                    name: formData.name,
+                    whatsapp: formData.whatsapp,
+                    city: formData.city,
+                    uf: formData.uf,
+                });
 
-                if (error) {
-                    console.error("Erro Supabase:", error);
-                    // Fallback para fluxo local se sem conexão/keys
-                    onSubmit({ ...formData, id: 'temp-' + Date.now() }); 
-                } else if (data) {
-                    // Passa o ID real do banco para o próximo passo
-                    onSubmit({ ...formData, id: data.id });
+                if (lead?.id) {
+                    onSubmit({ ...formData, id: lead.id });
+                } else {
+                    onSubmit({ ...formData, id: 'temp-' + Date.now() });
                 }
             } catch (err) {
                  console.error("Erro conexão:", err);

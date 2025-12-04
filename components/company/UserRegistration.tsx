@@ -6,8 +6,8 @@ import { ArrowLeftIcon } from '../icons/ArrowLeftIcon';
 import { UserCircleIcon } from '../icons/UserCircleIcon';
 import { BriefcaseIcon } from '../icons/BriefcaseIcon';
 import { CheckIcon } from '../icons/CheckIcon';
-import { supabase } from '../../lib/supabaseClient';
-import { UserSession } from '../../App';
+import { usersApi } from '../../lib/api';
+import { UserSession } from '../../contexts/AuthContext';
 
 interface UserRegistrationProps {
     userSession: UserSession | null;
@@ -41,59 +41,16 @@ const UserRegistration: React.FC<UserRegistrationProps> = ({ userSession, onBack
                 return;
             }
 
-            // 1. Create Auth User
-            const { data: authData, error: authError } = await supabase.auth.signUp({
+            await usersApi.createForCompany(userSession.details.companyId, {
+                fullName: formData.fullName,
                 email: formData.email,
-                password: formData.password,
-                options: {
-                    data: {
-                        full_name: formData.fullName,
-                    }
-                }
+                whatsapp: formData.whatsapp,
+                role: formData.role,
+                password: formData.password
             });
 
-            if (authError) {
-                if (authError.message.includes("already registered")) {
-                    alert("Este e-mail já possui uma conta no sistema.");
-                    setIsLoading(false);
-                    return;
-                }
-                throw authError;
-            }
-
-            const newUserId = authData.user?.id;
-            
-            if (newUserId) {
-                // 2. Create Profile linked to Company
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .insert([{
-                        id: newUserId,
-                        company_id: userSession.details.companyId,
-                        full_name: formData.fullName,
-                        email: formData.email,
-                        whatsapp: formData.whatsapp,
-                        role: formData.role
-                    }]);
-
-                if (profileError) throw profileError;
-
-                // 3. Log action
-                await supabase.from('audit_logs').insert({
-                    company_id: userSession.details.companyId,
-                    user_id: userSession.id,
-                    action: 'create_user',
-                    details: { 
-                        created_user_email: formData.email,
-                        role: formData.role
-                    }
-                });
-
-                setSuccessMessage(`Usuário ${formData.fullName} cadastrado com sucesso!`);
-                setFormData({ fullName: '', email: '', whatsapp: '', role: 'vendedor', password: '' });
-            } else {
-                throw new Error("Falha ao criar ID de usuário.");
-            }
+            setSuccessMessage(`Usuário ${formData.fullName} cadastrado com sucesso!`);
+            setFormData({ fullName: '', email: '', whatsapp: '', role: 'vendedor', password: '' });
 
         } catch (error: any) {
             console.error("Erro ao cadastrar usuário", error);

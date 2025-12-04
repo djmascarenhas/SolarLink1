@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ConsumerData } from './ConsumerForm';
 import { GoogleGenAI } from "@google/genai";
-import { supabase } from '../../lib/supabaseClient';
+import { leadsApi } from '../../lib/api';
 import { SendIcon } from '../icons/SendIcon';
 import { UserCircleIcon } from '../icons/UserCircleIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
@@ -56,10 +56,9 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
 
                 // Save initial message to DB if ID exists
                 if (userData.id && !userData.id.startsWith('temp-')) {
-                    await supabase.from('chat_logs').insert({
-                        lead_id: userData.id,
+                    await leadsApi.appendMessage(userData.id, {
                         role: 'assistant',
-                        content: welcomeText
+                        content: welcomeText,
                     });
                 }
             }, 1500);
@@ -83,10 +82,9 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
 
         // 1. Save User Message to DB
         if (userData.id && !userData.id.startsWith('temp-')) {
-            supabase.from('chat_logs').insert({
-                lead_id: userData.id,
+            leadsApi.appendMessage(userData.id, {
                 role: 'user',
-                content: userMsg.text
+                content: userMsg.text,
             }).then(() => {});
         }
 
@@ -136,10 +134,9 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
 
             // 2. Save AI Response to DB
             if (userData.id && !userData.id.startsWith('temp-')) {
-                await supabase.from('chat_logs').insert({
-                    lead_id: userData.id,
+                await leadsApi.appendMessage(userData.id, {
                     role: 'assistant',
-                    content: aiText
+                    content: aiText,
                 });
             }
 
