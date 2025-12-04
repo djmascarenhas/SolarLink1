@@ -4,11 +4,11 @@ import ConsumerSelection from './ConsumerSelection';
 import ConsumerChat from './ConsumerChat';
 import Card from '../common/Card';
 import { SparklesIcon } from '../icons/SparklesIcon';
-import { UserSession } from '../../App';
+import { UserSession } from '../../contexts/AuthContext';
 
 interface ConsumerPortalProps {
     userSession: UserSession | null;
-    setUserSession: (session: UserSession) => void;
+    setUserSession: (session: UserSession | null) => void;
 }
 
 const ConsumerPortal: React.FC<ConsumerPortalProps> = ({ userSession, setUserSession }) => {

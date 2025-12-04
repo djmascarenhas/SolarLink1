@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '../lib/supabaseClient';
-import { Session } from '@supabase/supabase-js';
+import { authApi } from '../lib/api';
+import { httpClient } from '../lib/httpClient';
 
 export interface UserSession {
     name: string;
@@ -24,56 +24,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     useEffect(() => {
         const restoreSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-
-            if (session?.user) {
-                // Check if user is a business profile
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select(`
-                        *,
-                        companies (
-                            id,
-                            name,
-                            credits
-                        )
-                    `)
-                    .eq('id', session.user.id)
-                    .single();
-
-                if (profile && profile.companies) {
-                    // It's a business user
-                    setUserSession({
-                        name: profile.full_name || 'Usuário',
-                        type: 'business',
-                        id: session.user.id,
-                        details: {
-                            companyName: profile.companies.name,
-                            credits: profile.companies.credits,
-                            companyId: profile.companies.id,
-                            role: profile.role
-                        }
-                    });
-                } else {
-                    // Consumer logic can be added here
+            try {
+                const session = await authApi.getSession();
+                if (session?.id) {
+                    setUserSession(session);
                 }
+            } catch (error) {
+                console.warn('Nenhuma sessão restaurada', error);
+            } finally {
+                setLoadingSession(false);
             }
-            setLoadingSession(false);
         };
+
+        const unsubscribeUnauthorized = httpClient.onUnauthorized(() => {
+            setUserSession(null);
+        });
 
         restoreSession();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            if (!session) {
-                setUserSession(null);
-            }
-        });
-
-        return () => subscription.unsubscribe();
+        return () => {
+            unsubscribeUnauthorized();
+        };
     }, []);
 
     const logout = async () => {
-        await supabase.auth.signOut();
+        await authApi.logout();
         setUserSession(null);
     };
 
