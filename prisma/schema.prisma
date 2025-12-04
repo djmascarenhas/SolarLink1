@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String            @id @default(uuid()) @db.Uuid
+  email      String            @unique
+  name       String
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  companies  CompanyProfile[]
+  opportunities Opportunity[]  @relation("OpportunityOwner")
+  creditPurchases CreditPurchase[] @relation("CreditBuyer")
+}
+
+model CompanyProfile {
+  id           String           @id @default(uuid()) @db.Uuid
+  name         String
+  cnpj         String?          @unique
+  industry     String?
+  contactEmail String?
+  contactPhone String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  ownerId      String           @db.Uuid
+  owner        User             @relation(fields: [ownerId], references: [id])
+  opportunities Opportunity[]
+  creditPurchases CreditPurchase[]
+}
+
+enum OpportunityStatus {
+  PENDING
+  IN_PROGRESS
+  WON
+  LOST
+}
+
+model Opportunity {
+  id          String             @id @default(uuid()) @db.Uuid
+  title       String
+  description String?
+  status      OpportunityStatus  @default(PENDING)
+  estimatedValue Decimal?        @db.Decimal(14, 2)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  companyId   String?            @db.Uuid
+  company     CompanyProfile?    @relation(fields: [companyId], references: [id])
+  ownerId     String             @db.Uuid
+  owner       User               @relation("OpportunityOwner", fields: [ownerId], references: [id])
+  creditPurchases CreditPurchase[]
+}
+
+model CreditPurchase {
+  id            String          @id @default(uuid()) @db.Uuid
+  creditAmount  Int
+  totalValue    Decimal         @db.Decimal(14, 2)
+  currency      String          @default("BRL")
+  purchasedAt   DateTime        @default(now())
+  companyId     String?         @db.Uuid
+  company       CompanyProfile? @relation(fields: [companyId], references: [id])
+  buyerId       String          @db.Uuid
+  buyer         User            @relation("CreditBuyer", fields: [buyerId], references: [id])
+  opportunityId String?         @db.Uuid
+  opportunity   Opportunity?    @relation(fields: [opportunityId], references: [id])
+}

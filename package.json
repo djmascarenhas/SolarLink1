@@ -3,12 +3,19 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:seed": "prisma db seed"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "@google/genai": "^1.30.0",
     "@supabase/supabase-js": "2.39.3",
     "react": "^19.2.0",
@@ -21,6 +28,7 @@
     "@testing-library/react": "^16.3.0",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "prisma": "^5.22.0",
     "jsdom": "^27.2.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
