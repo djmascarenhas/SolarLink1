@@ -7,7 +7,7 @@ import { UserCircleIcon } from '../icons/UserCircleIcon';
 import { BriefcaseIcon } from '../icons/BriefcaseIcon';
 import { CheckIcon } from '../icons/CheckIcon';
 import { supabase } from '../../lib/supabaseClient';
-import { UserSession } from '../../App';
+import { UserSession } from '../../contexts/AuthContext';
 
 interface UserRegistrationProps {
     userSession: UserSession | null;
