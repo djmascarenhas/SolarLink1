@@ -4,14 +4,12 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0"
+import { authenticateRequest, authorizeRoles, corsHeaders, type AllowedRole } from "../_shared/auth.ts"
 
 // Fix: Add declaration for Deno to avoid TypeScript errors in non-Deno environments.
 declare const Deno: any;
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const allowedRoles: AllowedRole[] = ['admin', 'business', 'consumer']
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -19,6 +17,12 @@ serve(async (req) => {
   }
 
   try {
+    const authResult = await authenticateRequest(req)
+    if (!authResult.user) return authResult.response
+
+    const roleCheck = authorizeRoles(authResult.user, allowedRoles)
+    if (!('role' in roleCheck)) return roleCheck.response
+
     const { message, lead_id, context } = await req.json()
 
     // 1. Configurar Cliente Supabase (Service Role para acesso total ao BD)

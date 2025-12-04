@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { SendIcon } from '../icons/SendIcon';
 import { UserCircleIcon } from '../icons/UserCircleIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Message {
     id: number;
@@ -25,6 +26,7 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
     const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const hasInitialized = useRef(false);
+    const { getAuthHeaders } = useAuth();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -91,39 +93,50 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
         }
 
         try {
-            // NOTE: Here we could call our Edge Function 'solara-agent'
-            // For now, we keep using Gemini Client Side for demo speed, 
-            // but wrapped to act as "Solara" backend logic.
-            
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
-            const history = messages.map(m => `${m.sender === 'user' ? 'Usuário' : 'Solara'}: ${m.text}`).join('\n');
-            const prompt = `
-            Você é a SOLARA, uma IA especialista em engenharia e vendas de energia solar.
-            
-            Contexto do Cliente:
-            Nome: ${userData.name}
-            Local: ${userData.city}/${userData.uf}
-            Interesse Inicial: ${initialContext || 'Geral'}
-            
-            Histórico:
-            ${history}
-            Usuário: ${userMsg.text}
-            
-            Diretrizes:
-            1. Aja como um backend "Gerencia" que está qualificando um lead.
-            2. Tente descobrir o valor da conta de luz (R$) e o tipo de telhado.
-            3. Se já tiver esses dados, sugira agendar uma visita técnica ou orçamento.
-            4. Use linguagem natural, empática e profissional.
-            
-            Responda como Solara:`;
+            const authHeaders = getAuthHeaders();
+            const shouldUseEdgeFunction = Boolean(authHeaders.Authorization);
+            let aiText = "Estou processando seus dados, um momento...";
 
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-            });
+            if (shouldUseEdgeFunction) {
+                const { data, error } = await supabase.functions.invoke('solara-agent', {
+                    body: { message: userMsg.text, lead_id: userData.id, context: initialContext },
+                    headers: authHeaders
+                });
 
-            const aiText = response.text || "Estou processando seus dados, um momento...";
+                if (error) throw error;
+                aiText = data?.reply || aiText;
+            } else {
+                // Fallback local (dev/demo) quando não há sessão autenticada
+                const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+                const history = messages.map(m => `${m.sender === 'user' ? 'Usuário' : 'Solara'}: ${m.text}`).join('\n');
+                const prompt = `
+                Você é a SOLARA, uma IA especialista em engenharia e vendas de energia solar.
+
+                Contexto do Cliente:
+                Nome: ${userData.name}
+                Local: ${userData.city}/${userData.uf}
+                Interesse Inicial: ${initialContext || 'Geral'}
+
+                Histórico:
+                ${history}
+                Usuário: ${userMsg.text}
+
+                Diretrizes:
+                1. Aja como um backend "Gerencia" que está qualificando um lead.
+                2. Tente descobrir o valor da conta de luz (R$) e o tipo de telhado.
+                3. Se já tiver esses dados, sugira agendar uma visita técnica ou orçamento.
+                4. Use linguagem natural, empática e profissional.
+
+                Responda como Solara:`;
+
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: prompt,
+                });
+
+                aiText = response.text || aiText;
+            }
 
             const aiMsg: Message = {
                 id: Date.now() + 1,
