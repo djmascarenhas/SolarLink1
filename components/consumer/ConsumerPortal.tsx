@@ -4,7 +4,7 @@ import ConsumerSelection from './ConsumerSelection';
 import ConsumerChat from './ConsumerChat';
 import Card from '../common/Card';
 import { SparklesIcon } from '../icons/SparklesIcon';
-import { UserSession } from '../../App';
+import { UserSession } from '../../contexts/AuthContext';
 
 interface ConsumerPortalProps {
     userSession: UserSession | null;
