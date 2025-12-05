@@ -24,6 +24,7 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
     const [isTyping, setIsTyping] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const hasInitialized = useRef(false);
+    const supabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -117,7 +118,9 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
             }
 
             if (!aiText) {
-                aiText = "Não consegui falar com o agente agora, mas vou registrar sua solicitação. Pode compartilhar o valor da sua conta de luz ou dúvidas específicas?";
+                aiText = supabaseConfigured
+                    ? "Não consegui falar com o agente agora, mas vou registrar sua solicitação. Pode compartilhar o valor da sua conta de luz ou dúvidas específicas?"
+                    : "Estou operando em modo offline, mas estou ouvindo! Conecte o app ao Supabase (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY) para respostas reais.";
             }
 
             const aiMsg: Message = {
@@ -172,6 +175,11 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
             </div>
 
             {/* Chat Area */}
+            {!supabaseConfigured && (
+                <div className="bg-amber-900/40 border border-amber-700 text-amber-100 px-4 py-3 text-sm">
+                    Executando em modo offline. Configure <code className="font-mono text-amber-200">VITE_SUPABASE_URL</code> e <code className="font-mono text-amber-200">VITE_SUPABASE_ANON_KEY</code> para habilitar respostas reais do agente.
+                </div>
+            )}
             <div className="flex-grow overflow-y-auto p-4 space-y-4 custom-scrollbar">
                 {messages.map((msg) => (
                     <div 
