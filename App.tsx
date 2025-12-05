@@ -17,6 +17,7 @@ import PortalHub from './components/PortalHub';
 import UserStatusBar from './components/UserStatusBar';
 import UserRegistration from './components/company/UserRegistration';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import SidebarMenu from './components/SidebarMenu';
 
 const ScrollToAnchor = () => {
     const { hash } = useLocation();
@@ -51,19 +52,24 @@ const Home = () => {
     };
 
     return (
-        <>
-            <Hero
-                userSession={userSession}
-                setUserSession={setUserSession}
-                onNavigate={handleNavigate}
-            />
-            <WhyChooseUs />
-            <HowItWorks />
-            <Features />
-            <Pricing onNavigate={handleNavigate} />
-            <Faq />
-            <CtaSection onNavigate={handleNavigate} />
-        </>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
+            <div className="flex flex-col gap-10 lg:flex-row">
+                <SidebarMenu />
+                <div className="flex-1 space-y-16">
+                    <Hero
+                        userSession={userSession}
+                        setUserSession={setUserSession}
+                        onNavigate={handleNavigate}
+                    />
+                    <WhyChooseUs />
+                    <HowItWorks />
+                    <Features />
+                    <Pricing onNavigate={handleNavigate} />
+                    <Faq />
+                    <CtaSection onNavigate={handleNavigate} />
+                </div>
+            </div>
+        </div>
     );
 };
 
