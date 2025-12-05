@@ -24,11 +24,16 @@ This document outlines the improvements made to the SolarLink project and sugges
 -   **Lead Marketplace:** Implement the backend logic for the "Buy Credits" and "Opportunities" system, likely using Supabase Edge Functions for secure transactions.
 -   **Payment Gateway:** Integrate a payment provider (like Stripe or Mercado Pago) for purchasing credits.
 
-### 2. Technical Debt & Optimization
+### 2. Data & Integrations
+-   **Asset Storage Strategy:** If keeping Supabase, persist files (logos, documents) using Supabase Storage; otherwise migrate these assets to the new backend storage (e.g., S3) and align upload/download flows accordingly.
+-   **GenAI Security:** When using Google GenAI, route calls through the backend whenever secret keys must be protected, keeping client-side exposure to a minimum.
+-   **Async Workflows:** Configure queues or event-driven handlers for asynchronous processes such as transactional emails or credit calculations to improve reliability and observability.
+
+### 3. Technical Debt & Optimization
 -   **Form Validation:** Implement a library like `react-hook-form` + `zod` for robust form validation in the Consumer and Registration flows.
 -   **SEO Optimization:** Add `react-helmet-async` to manage `<title>` and `<meta>` tags dynamically for each route.
 -   **Performance:** Implement code splitting (lazy loading) for heavy routes like `ConsumerPortal` and `UserRegistration`.
 
-### 3. Testing
+### 4. Testing
 -   **E2E Testing:** Expand the Playwright setup (currently used for verification) into a full E2E test suite running on CI/CD.
 -   **Integration Tests:** Add tests for the `AuthContext` to verify login/logout flows and session persistence.
