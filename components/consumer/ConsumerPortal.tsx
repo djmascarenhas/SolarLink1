@@ -4,14 +4,15 @@ import ConsumerSelection from './ConsumerSelection';
 import ConsumerChat from './ConsumerChat';
 import Card from '../common/Card';
 import { SparklesIcon } from '../icons/SparklesIcon';
-import { UserSession } from '../../App';
+import { UserSession } from '../../contexts/AuthContext';
 
 interface ConsumerPortalProps {
     userSession: UserSession | null;
     setUserSession: (session: UserSession) => void;
+    showIntro?: boolean;
 }
 
-const ConsumerPortal: React.FC<ConsumerPortalProps> = ({ userSession, setUserSession }) => {
+const ConsumerPortal: React.FC<ConsumerPortalProps> = ({ userSession, setUserSession, showIntro = true }) => {
     const [step, setStep] = useState<'form' | 'selection' | 'chat'>('form');
     const [userData, setUserData] = useState<ConsumerData | null>(null);
     const [selectedContext, setSelectedContext] = useState<string>('');
@@ -58,18 +59,20 @@ const ConsumerPortal: React.FC<ConsumerPortalProps> = ({ userSession, setUserSes
         <section className="min-h-screen pt-24 pb-20 bg-transparent animate-fadeIn">
             <div className="container mx-auto px-6">
                 <div className="max-w-4xl mx-auto">
-                    <div className="text-center mb-10">
-                         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-medium text-sm mb-4">
-                             <SparklesIcon className="w-4 h-4" />
-                             <span>Consultoria Gratuita com IA</span>
-                         </div>
-                        <h1 className="text-3xl md:text-5xl font-bold text-white mb-4">
-                            Descubra o potencial solar da sua casa
-                        </h1>
-                        <p className="text-gray-300 text-lg">
-                            Use nossa inteligência artificial para entender quanto você pode economizar e tire todas as suas dúvidas sobre energia solar.
-                        </p>
-                    </div>
+                    {showIntro && (
+                        <div className="text-center mb-10">
+                            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-medium text-sm mb-4">
+                                <SparklesIcon className="w-4 h-4" />
+                                <span>Consultoria Gratuita com IA</span>
+                            </div>
+                            <h1 className="text-3xl md:text-5xl font-bold text-white mb-4">
+                                Descubra o potencial solar da sua casa
+                            </h1>
+                            <p className="text-gray-300 text-lg">
+                                Use nossa inteligência artificial para entender quanto você pode economizar e tire todas as suas dúvidas sobre energia solar.
+                            </p>
+                        </div>
+                    )}
 
                     <Card className="bg-slate-900/80 backdrop-blur-xl border-slate-700 shadow-2xl p-0 overflow-hidden min-h-[500px] flex flex-col relative">
                         {/* Background Decor */}

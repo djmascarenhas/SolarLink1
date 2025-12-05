@@ -13,10 +13,12 @@ import Footer from './components/Footer';
 import Opportunities from './components/Opportunities';
 import BuyCredits from './components/BuyCredits';
 import ConsumerPortal from './components/consumer/ConsumerPortal';
+import SolkarlinkExperience from './components/consumer/SolkarlinkExperience';
 import PortalHub from './components/PortalHub';
 import UserStatusBar from './components/UserStatusBar';
 import UserRegistration from './components/company/UserRegistration';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import SidebarMenu from './components/SidebarMenu';
 
 const ScrollToAnchor = () => {
     const { hash } = useLocation();
@@ -51,19 +53,24 @@ const Home = () => {
     };
 
     return (
-        <>
-            <Hero
-                userSession={userSession}
-                setUserSession={setUserSession}
-                onNavigate={handleNavigate}
-            />
-            <WhyChooseUs />
-            <HowItWorks />
-            <Features />
-            <Pricing onNavigate={handleNavigate} />
-            <Faq />
-            <CtaSection onNavigate={handleNavigate} />
-        </>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
+            <div className="flex flex-col gap-10 lg:flex-row">
+                <SidebarMenu />
+                <div className="flex-1 space-y-16">
+                    <Hero
+                        userSession={userSession}
+                        setUserSession={setUserSession}
+                        onNavigate={handleNavigate}
+                    />
+                    <WhyChooseUs />
+                    <HowItWorks />
+                    <Features />
+                    <Pricing onNavigate={handleNavigate} />
+                    <Faq />
+                    <CtaSection onNavigate={handleNavigate} />
+                </div>
+            </div>
+        </div>
     );
 };
 
@@ -81,6 +88,7 @@ const AppContent: React.FC = () => {
         else if (view === 'opportunities') navigate('/opportunities');
         else if (view === 'buy_credits') navigate('/buy_credits');
         else if (view === 'consumer') navigate('/consumer');
+        else if (view === 'solkarlink') navigate('/solkarlink');
         else if (view === 'user_registration') navigate('/register');
     };
 
@@ -113,9 +121,21 @@ const AppContent: React.FC = () => {
                 <main className="flex-grow">
                     <ScrollToAnchor />
                     <Routes>
-                        <Route path="/" element={<PortalHub onNavigate={(view) => view === 'consumer' ? navigate('/consumer') : navigate('/business')} />} />
+                        <Route
+                            path="/"
+                            element={
+                                <PortalHub
+                                    onNavigate={(view) => {
+                                        if (view === 'consumer') navigate('/consumer');
+                                        else if (view === 'solkarlink') navigate('/solkarlink');
+                                        else navigate('/business');
+                                    }}
+                                />
+                            }
+                        />
                         <Route path="/business" element={<Home />} />
                         <Route path="/consumer" element={<ConsumerWrapper />} />
+                        <Route path="/solkarlink" element={<SolkarlinkWrapper />} />
                         <Route path="/opportunities" element={<OpportunitiesWrapper />} />
                         <Route path="/buy_credits" element={<BuyCredits onBack={() => navigate('/business')} />} />
                         <Route path="/register" element={<UserRegistration userSession={userSession} onBack={() => navigate('/business')} />} />
@@ -131,6 +151,11 @@ const AppContent: React.FC = () => {
 const ConsumerWrapper = () => {
     const { userSession, setUserSession } = useAuth();
     return <ConsumerPortal userSession={userSession} setUserSession={setUserSession} />;
+}
+
+const SolkarlinkWrapper = () => {
+    const { userSession, setUserSession } = useAuth();
+    return <SolkarlinkExperience userSession={userSession} setUserSession={setUserSession} />;
 }
 
 const OpportunitiesWrapper = () => {

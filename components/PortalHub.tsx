@@ -7,7 +7,7 @@ import { BuildingIcon } from './icons/BuildingIcon';
 import { ArrowRightIcon } from './icons/ArrowRightIcon'; // Assuming you have an arrow icon, or use simple text
 
 interface PortalHubProps {
-    onNavigate: (view: 'home' | 'consumer') => void;
+    onNavigate: (view: 'home' | 'consumer' | 'solkarlink') => void;
 }
 
 const PortalHub: React.FC<PortalHubProps> = ({ onNavigate }) => {
@@ -27,9 +27,9 @@ const PortalHub: React.FC<PortalHubProps> = ({ onNavigate }) => {
                     </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
                     {/* Card Consumidor */}
-                    <div 
+                    <div
                         onClick={() => onNavigate('consumer')}
                         className="group relative bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-3xl p-8 hover:bg-slate-900/60 transition-all duration-500 cursor-pointer hover:-translate-y-2 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/20 flex flex-col items-center text-center"
                     >
@@ -50,7 +50,7 @@ const PortalHub: React.FC<PortalHubProps> = ({ onNavigate }) => {
                     </div>
 
                     {/* Card Empresas/Integradores */}
-                    <div 
+                    <div
                         onClick={() => onNavigate('home')}
                         className="group relative bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-3xl p-8 hover:bg-slate-900/60 transition-all duration-500 cursor-pointer hover:-translate-y-2 hover:border-yellow-500/50 hover:shadow-2xl hover:shadow-yellow-500/20 flex flex-col items-center text-center"
                     >
@@ -67,6 +67,27 @@ const PortalHub: React.FC<PortalHubProps> = ({ onNavigate }) => {
                         
                         <Button variant="primary" className="mt-auto w-full md:w-auto px-8 py-4 text-lg">
                             Acessar Portal de Empresas
+                        </Button>
+                    </div>
+
+                    {/* Card App dedicado */}
+                    <div
+                        onClick={() => onNavigate('solkarlink')}
+                        className="group relative bg-slate-900/40 backdrop-blur-md border border-white/10 rounded-3xl p-8 hover:bg-slate-900/60 transition-all duration-500 cursor-pointer hover:-translate-y-2 hover:border-sky-500/50 hover:shadow-2xl hover:shadow-sky-500/20 flex flex-col items-center text-center"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl"></div>
+
+                        <div className="w-24 h-24 bg-sky-500/20 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500 border border-sky-500/30">
+                            <ArrowRightIcon className="w-12 h-12 text-sky-300" />
+                        </div>
+
+                        <h2 className="text-3xl font-bold text-white mb-3">App SolarLink</h2>
+                        <p className="text-gray-300 mb-8 text-lg">
+                            Abra a jornada completa de consumidor em um app dedicado, pronto para ser embutido em campanhas e outras páginas.
+                        </p>
+
+                        <Button variant="secondary" className="mt-auto w-full md:w-auto px-8 py-4 text-lg border-sky-400/50 text-sky-200 hover:bg-sky-500/10">
+                            Explorar o App
                         </Button>
                     </div>
                 </div>

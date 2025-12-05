@@ -13,7 +13,7 @@ import { BuildingIcon } from './icons/BuildingIcon';
 import { CoinsIcon } from './icons/CoinsIcon';
 import { GoogleGenAI } from "@google/genai";
 import { supabase } from '../lib/supabaseClient';
-import { UserSession } from '../App';
+import { UserSession } from '../contexts/AuthContext';
 
 // Define types for form data and errors
 interface FormData {

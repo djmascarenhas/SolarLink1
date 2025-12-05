@@ -22,6 +22,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
     if (path === '/') return 'portal';
     if (path.startsWith('/business')) return 'home';
     if (path.startsWith('/consumer')) return 'consumer';
+    if (path.startsWith('/solkarlink')) return 'solkarlink';
     if (path.startsWith('/opportunities')) return 'opportunities';
     if (path.startsWith('/buy_credits')) return 'buy_credits';
     if (path.startsWith('/register')) return 'user_registration';
@@ -31,7 +32,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
   const currentView = getCurrentView();
 
   // Function to handle navigation links
-  const handleNavClick = (view: 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer' | 'user_registration', param?: string) => {
+  const handleNavClick = (view: 'portal' | 'home' | 'opportunities' | 'buy_credits' | 'consumer' | 'user_registration' | 'solkarlink', param?: string) => {
     setIsMenuOpen(false);
 
     // Internal navigation logic
@@ -64,7 +65,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
   };
 
   const isBusinessView = currentView === 'home' || currentView === 'opportunities' || currentView === 'buy_credits' || currentView === 'user_registration';
-  const isConsumerView = currentView === 'consumer';
+  const isConsumerView = currentView === 'consumer' || currentView === 'solkarlink';
 
   return (
     <header className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-lg border-b border-slate-800">
@@ -104,11 +105,18 @@ const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
                 >
                     Dúvidas
                 </button>
-                <button 
-                    onClick={() => handleNavClick('opportunities')} 
+                <button
+                    onClick={() => handleNavClick('opportunities')}
                     className={`text-gray-300 hover:text-yellow-400 transition-colors text-sm font-medium ${currentView === 'opportunities' ? 'text-yellow-500' : ''}`}
                 >
                     Oportunidades
+                </button>
+
+                <button
+                    onClick={() => handleNavClick('solkarlink')}
+                    className={`text-gray-300 hover:text-sky-300 transition-colors text-sm font-medium ${currentView === 'solkarlink' ? 'text-sky-300' : ''}`}
+                >
+                    App SolarLink
                 </button>
                 
                 {/* Switch to Consumer */}
@@ -165,6 +173,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate }) => {
                 <button onClick={() => handleNavClick('home', '#comprar')} className="text-gray-300 hover:text-yellow-400 transition-colors py-2">Planos</button>
                 <button onClick={() => handleNavClick('home', '#faq')} className="text-gray-300 hover:text-yellow-400 transition-colors py-2">Dúvidas</button>
                 <button onClick={() => handleNavClick('opportunities')} className="text-gray-300 hover:text-yellow-400 transition-colors py-2">Oportunidades</button>
+                <button onClick={() => handleNavClick('solkarlink')} className="text-gray-300 hover:text-sky-300 transition-colors py-2">App SolarLink</button>
                 <button onClick={() => handleNavClick('consumer')} className="text-indigo-400 hover:text-indigo-300 font-bold py-2 border-t border-slate-700 w-full text-center mt-2 pt-4">Sou Consumidor</button>
                 <Button variant="primary" className="w-full mt-2" onClick={() => handleNavClick('home')}>Cadastrar Grátis</Button>
             </>
