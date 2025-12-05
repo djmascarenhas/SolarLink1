@@ -1,8 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ConsumerData } from './ConsumerForm';
-import { GoogleGenAI } from "@google/genai";
-import { supabase } from '../../lib/supabaseClient';
+import { supabase, supabaseAnonKey, supabaseUrl } from '../../lib/supabaseClient';
 import { SendIcon } from '../icons/SendIcon';
 import { UserCircleIcon } from '../icons/UserCircleIcon';
 import { SparklesIcon } from '../icons/SparklesIcon';
@@ -91,39 +90,35 @@ const ConsumerChat: React.FC<ConsumerChatProps> = ({ userData, initialContext })
         }
 
         try {
-            // NOTE: Here we could call our Edge Function 'solara-agent'
-            // For now, we keep using Gemini Client Side for demo speed, 
-            // but wrapped to act as "Solara" backend logic.
-            
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            
-            const history = messages.map(m => `${m.sender === 'user' ? 'Usuário' : 'Solara'}: ${m.text}`).join('\n');
-            const prompt = `
-            Você é a SOLARA, uma IA especialista em engenharia e vendas de energia solar.
-            
-            Contexto do Cliente:
-            Nome: ${userData.name}
-            Local: ${userData.city}/${userData.uf}
-            Interesse Inicial: ${initialContext || 'Geral'}
-            
-            Histórico:
-            ${history}
-            Usuário: ${userMsg.text}
-            
-            Diretrizes:
-            1. Aja como um backend "Gerencia" que está qualificando um lead.
-            2. Tente descobrir o valor da conta de luz (R$) e o tipo de telhado.
-            3. Se já tiver esses dados, sugira agendar uma visita técnica ou orçamento.
-            4. Use linguagem natural, empática e profissional.
-            
-            Responda como Solara:`;
+            const agentUrl = supabaseUrl
+                ? `${supabaseUrl}/functions/v1/solara-agent`
+                : '';
 
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
-            });
+            let aiText: string | undefined;
 
-            const aiText = response.text || "Estou processando seus dados, um momento...";
+            if (agentUrl) {
+                const result = await fetch(agentUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(supabaseAnonKey ? { apikey: supabaseAnonKey } : {}),
+                    },
+                    body: JSON.stringify({
+                        message: userMsg.text,
+                        lead_id: userData.id,
+                        context: initialContext,
+                    }),
+                });
+
+                if (result.ok) {
+                    const payload = await result.json();
+                    aiText = payload.reply as string | undefined;
+                }
+            }
+
+            if (!aiText) {
+                aiText = "Não consegui falar com o agente agora, mas vou registrar sua solicitação. Pode compartilhar o valor da sua conta de luz ou dúvidas específicas?";
+            }
 
             const aiMsg: Message = {
                 id: Date.now() + 1,
