@@ -1,9 +1,10 @@
 
 import { supabase } from './supabaseClient';
 import { GoogleGenAI } from "@google/genai";
+import { getGeminiApiKey } from './env';
 
 // Inicializa a IA (Gemini)
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
 
 /**
  * SERVIÇO DE BACKEND SOLARLINK
@@ -180,12 +181,12 @@ export const SolarLinkService = {
 
     // 3. Chamar Gemini
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: systemPrompt,
+      const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: systemPrompt }] }],
       });
 
-      const aiReply = response.text || "Desculpe, estou recalculando meus painéis solares. Pode repetir?";
+      const aiReply = result.response.text() || "Desculpe, estou recalculando meus painéis solares. Pode repetir?";
 
       // 4. Salvar resposta da IA
       await supabase

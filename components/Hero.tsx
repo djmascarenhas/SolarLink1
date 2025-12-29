@@ -6,6 +6,7 @@ import { BuildingIcon } from './icons/BuildingIcon';
 import { GoogleGenAI } from "@google/genai";
 import { supabase } from '../lib/supabaseClient';
 import { SolarLinkService } from '../lib/solarLinkService'; // Importando o Service
+import { getGeminiApiKey } from "../lib/env";
 import { UserSession } from '../App';
 
 // Define types for form data and errors
@@ -84,18 +85,19 @@ const Hero: React.FC<HeroProps> = ({ userSession, setUserSession, onNavigate }) 
   const handleAiImprove = async () => {
     setIsAiLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
       let textToProcess = formData.message || "Somos uma empresa integradora de energia solar comprometida em entregar as melhores soluções fotovoltaicas.";
       
       const prompt = `Atue como um especialista em marketing. Reescreva: "${textToProcess}". Destaque: Economia, Qualidade Técnica, Confiança. Máx 300 chars.`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-flash-lite-latest',
-        contents: prompt,
+      const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
       });
 
-      if (response.text) {
-        setFormData(prev => ({ ...prev, message: response.text.replace(/^"|"$/g, '').trim() }));
+      const text = result.response.text();
+      if (text) {
+        setFormData(prev => ({ ...prev, message: text.replace(/^"|"$/g, '').trim() }));
       }
     } catch (error) {
       console.error("Erro IA", error);
