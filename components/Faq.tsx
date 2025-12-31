@@ -4,6 +4,7 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { SparklesIcon } from './icons/SparklesIcon';
 import Button from './common/Button';
 import { GoogleGenAI } from "@google/genai";
+import { getGeminiApiKey } from "../lib/env";
 
 const faqData = [
   {
@@ -73,7 +74,7 @@ const Faq: React.FC = () => {
     setSources([]);
 
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey: getGeminiApiKey() });
         const systemInstruction = `Você é um assistente virtual inteligente da SolarLink. 
         A SolarLink é uma plataforma que conecta clientes interessados em energia solar com empresas integradoras.
         Regras de negócio da SolarLink:
@@ -87,25 +88,24 @@ const Faq: React.FC = () => {
         Se necessário, use a ferramenta de busca para encontrar informações atualizadas.
         Seja breve, direto e use um tom prestativo e profissional. Responda em Português.`;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: aiQuestion,
-            config: {
-                systemInstruction: systemInstruction,
-                tools: [{ googleSearch: {} }],
-            }
+        const model = ai.getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: aiQuestion }] }],
+            systemInstruction: { role: 'system', parts: [{ text: systemInstruction }] },
+            tools: [{ googleSearch: {} }],
         });
 
-        if (response.text) {
-            setAiAnswer(response.text);
+        const text = result.response.text();
+        if (text) {
+            setAiAnswer(text);
         } else {
             setAiAnswer("Desculpe, não consegui processar sua pergunta agora.");
         }
 
         // Extract grounding metadata
-        if (response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
+        if (result.response.candidates?.[0]?.groundingMetadata?.groundingChunks) {
             const newSources: {uri: string, title: string}[] = [];
-             response.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
+             result.response.candidates[0].groundingMetadata.groundingChunks.forEach((chunk: any) => {
                 if (chunk.web?.uri && chunk.web?.title) {
                     newSources.push({ uri: chunk.web.uri, title: chunk.web.title });
                 }
